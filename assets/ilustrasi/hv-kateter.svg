@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Pasang atau lepas kateter">
+<rect width="240" height="160" rx="18" fill="#EEF6FB"/>
+<path d="M62 22c0 40 40 30 40 60" fill="none" stroke="#0F172A" stroke-width="3" stroke-linecap="round"/>
+<path d="M84 80h68a6 6 0 0 1 6 6v40a14 14 0 0 1-14 14h-52a14 14 0 0 1-14-14V86a6 6 0 0 1 6-6z" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.5"/>
+<path d="M80 108h76v18a12 12 0 0 1-12 12H92a12 12 0 0 1-12-12z" fill="#FDE68A"/>
+<path d="M144 92h8M144 100h8M144 108h8M144 116h8" stroke="#94A3B8" stroke-width="1.5"/>
+<rect x="160" y="40" width="44" height="28" rx="6" fill="#0F172A"/>
+<text x="182" y="58" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="700" fill="#00C2FF">2-WAY</text>
+<path d="M102 80V70" stroke="#0F172A" stroke-width="3" stroke-linecap="round"/>
+</svg>

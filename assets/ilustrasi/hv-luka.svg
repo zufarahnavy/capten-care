@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Perawatan luka">
+<rect width="240" height="160" rx="18" fill="#EEF6FB"/>
+<g transform="rotate(-18 110 80)">
+<rect x="40" y="58" width="140" height="44" rx="22" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.5"/>
+<rect x="86" y="58" width="48" height="44" fill="#00C2FF" opacity=".35"/>
+<g fill="#0F172A"><circle cx="98" cy="72" r="2"/><circle cx="110" cy="72" r="2"/><circle cx="122" cy="72" r="2"/><circle cx="98" cy="88" r="2"/><circle cx="110" cy="88" r="2"/><circle cx="122" cy="88" r="2"/></g>
+</g>
+<circle cx="186" cy="112" r="22" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.5"/><circle cx="186" cy="112" r="8" fill="#E2E8F0" stroke="#0F172A" stroke-width="2"/>
+<path d="M164 112h-30" stroke="#0F172A" stroke-width="2.5" stroke-linecap="round"/>
+</svg>
