@@ -6,7 +6,7 @@
  * ===================================================================== */
 (function (W, D) {
   'use strict';
-  var CFG = W.CONFIG || {}, VERSI = '1.0.0';
+  var CFG = W.CONFIG || {}, VERSI = '2.0.0';
 
   /* ===================== UTILITAS ===================== */
   var BLN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -399,44 +399,98 @@
       };
       return m;
     },
-    /* Tabel interaktif: urut, cari, halaman, pilih baris, ekspor CSV */
+    /* Daftar interaktif (v2: master-detail). Bawaan tampil sebagai KARTU RINGKAS — klik membuka laci
+       (slide-over) dari kanan. Tetap bisa ditukar ke TABEL (pilihan diingat per menu). Urut, cari,
+       halaman, pilih baris, ekspor CSV tetap sama di kedua tampilan. */
     tabel: function (wadah, o) {
-      var st = { urut: o.urut || null, arah: o.arah || 1, hal: 0, per: o.per || 25, q: '', pilih: {} };
+      var rute = (location.hash.match(/^#\/?([^?\/]+)/) || [])[1] || 'x', kunciTampil = 'cc_tampil_' + rute;
+      var awal = (function () { try { return localStorage.getItem(kunciTampil); } catch (x) { return null; } })();
+      var st = { urut: o.urut || null, arah: o.arah || 1, hal: 0, per: o.per || 25, q: '', pilih: {}, tampil: awal || o.tampil || 'kartu' };
+      var kartuWadah = wadah.closest('.kartu');
       function data() {
         var rows = o.rows.filter(function (r) { return U.cocok(r, st.q, o.cariKunci); });
         if (st.urut) { var k = o.kolom.filter(function (c) { return c.k === st.urut; })[0], nil = k && k.nilai ? k.nilai : function (r) { return r[st.urut]; }; rows = rows.slice().sort(function (a, b) { var x = nil(a), y = nil(b); if (typeof x === 'number' || typeof y === 'number') return ((U.n(x)) - (U.n(y))) * st.arah; return String(x == null ? '' : x).localeCompare(String(y == null ? '' : y), 'id') * st.arah; }); }
         return rows;
       }
+      function nilaiSel(c, r, i) { return c.f ? c.f(r, i) : U.e(r[c.k] == null || r[c.k] === '' ? '—' : r[c.k]); }
+      function aksiKol(c) { return /aksi-sel/.test(c.kelas || ''); }
+      function alat(total) {
+        var urutOpsi = o.kolom.filter(function (c) { return c.k && c.urut !== false && !aksiKol(c) && c.l; });
+        return '<div class="md-alat"><span>' + U.angka(total) + ' item' + (st.q ? ' · cocok "' + U.e(st.q) + '"' : '') + '</span><div class="baris">' +
+          (st.tampil === 'kartu' && urutOpsi.length > 1 ? UI.pilih('urut-md', [{ v: '', l: 'Urutan bawaan' }].concat(urutOpsi.map(function (c) { return { v: c.k, l: 'Urut: ' + c.l }; })), st.urut || '', { k: 'kecil', style: 'width:auto;height:30px', label: 'Urutkan' }) + (st.urut ? '<button type="button" class="btn ikon mini hantu" data-arah aria-label="Balik urutan" title="Balik urutan">' + ic(st.arah > 0 ? 'arrow-up' : 'arrow-down', 'k') + '</button>' : '') : '') +
+          '<div class="grup-btn" role="group" aria-label="Tampilan"><button type="button" data-tampil="kartu" class="' + (st.tampil === 'kartu' ? 'aktif' : '') + '" title="Kartu ringkas">' + ic('layout-list') + 'Kartu</button><button type="button" data-tampil="tabel" class="' + (st.tampil === 'tabel' ? 'aktif' : '') + '" title="Tabel">' + ic('table') + 'Tabel</button></div></div></div>';
+      }
+      function navHal(total, maksHal) {
+        return (total > st.per || o.selaluNav) ? '<div class="halaman-nav"' + (st.tampil === 'kartu' ? ' style="border:0;padding:12px 2px 0"' : '') + '><span>' + (st.hal * st.per + 1) + '–' + Math.min(total, st.hal * st.per + st.per) + ' dari ' + U.angka(total) + '</span><div class="baris">' + UI.pilih('per', [10, 25, 50, 100].map(function (n) { return { v: n, l: n + ' / hal' }; }), st.per, { k: 'kecil', style: 'width:auto' }) + '<button type="button" class="btn ikon kecil" data-hal="-1"' + (st.hal ? '' : ' disabled') + ' aria-label="Sebelumnya">' + ic('chevron-left') + '</button><button type="button" class="btn ikon kecil" data-hal="1"' + (st.hal < maksHal ? '' : ' disabled') + ' aria-label="Berikutnya">' + ic('chevron-right') + '</button></div></div>' : '';
+      }
       function gambar() {
         var rows = data(), total = rows.length, maksHal = Math.max(0, Math.ceil(total / st.per) - 1); if (st.hal > maksHal) st.hal = maksHal;
-        var hal = rows.slice(st.hal * st.per, st.hal * st.per + st.per);
+        var hal = rows.slice(st.hal * st.per, st.hal * st.per + st.per), kartu = st.tampil === 'kartu';
+        if (kartuWadah) kartuWadah.classList.toggle('md-wadah', kartu && total > 0);
         if (!total) { wadah.innerHTML = o.kosong || UI.kosong(st.q ? 'Tidak ada hasil untuk "' + st.q + '"' : 'Belum ada data', st.q ? 'Coba kata kunci lain.' : ''); return; }
-        var h = '<div class="tabel-wadah"><table class="tabel responsif"><thead><tr>' + (o.pilih ? '<th style="width:36px"><label class="cek"><input type="checkbox" data-pilih-semua></label></th>' : '') + o.kolom.map(function (c) { return '<th class="' + (c.kelas || '') + (c.urut !== false && c.k ? ' urut' : '') + '" data-urut="' + (c.urut !== false && c.k ? c.k : '') + '"' + (c.lebar ? ' style="width:' + c.lebar + '"' : '') + '>' + U.e(c.l) + (st.urut === c.k ? '<span class="panah">' + (st.arah > 0 ? '↑' : '↓') + '</span>' : '') + '</th>'; }).join('') + '</tr></thead><tbody>';
-        h += hal.map(function (r, i) { var id = r[o.idKunci || 'id']; return '<tr class="' + (o.klik ? 'klik' : '') + (st.pilih[id] ? ' dipilih' : '') + '" data-baris="' + U.e(id) + '">' + (o.pilih ? '<td data-l="Pilih"><label class="cek"><input type="checkbox" data-pilih="' + U.e(id) + '"' + (st.pilih[id] ? ' checked' : '') + '></label></td>' : '') + o.kolom.map(function (c, ci) { var v = c.f ? c.f(r, i) : U.e(r[c.k] == null || r[c.k] === '' ? '—' : r[c.k]); return '<td class="' + (c.kelas || '') + (ci === 0 && o.utamaM !== false ? ' utama-m' : '') + '" data-l="' + U.e(c.l) + '">' + v + '</td>'; }).join('') + '</tr>'; }).join('');
-        h += '</tbody>' + (o.kaki ? '<tfoot>' + o.kaki(rows) + '</tfoot>' : '') + '</table></div>';
-        if (total > st.per || o.selaluNav) h += '<div class="halaman-nav"><span>' + (st.hal * st.per + 1) + '–' + Math.min(total, st.hal * st.per + st.per) + ' dari ' + U.angka(total) + ' baris</span><div class="baris">' + UI.pilih('per', [10, 25, 50, 100].map(function (n) { return { v: n, l: n + ' / hal' }; }), st.per, { k: 'kecil', style: 'width:auto' }) + '<button type="button" class="btn ikon kecil" data-hal="-1"' + (st.hal ? '' : ' disabled') + ' aria-label="Sebelumnya">' + ic('chevron-left') + '</button><button type="button" class="btn ikon kecil" data-hal="1"' + (st.hal < maksHal ? '' : ' disabled') + ' aria-label="Berikutnya">' + ic('chevron-right') + '</button></div></div>';
+        var h = alat(total), bisaKlik = true;
+        if (kartu) {
+          var utama = o.kolom[0], meta = o.kolom.slice(1).filter(function (c) { return !aksiKol(c); }), aksi = o.kolom.filter(aksiKol);
+          h += '<div class="md-daftar">' + hal.map(function (r, i) {
+            var id = r[o.idKunci || 'id'], ak = aksi.map(function (c) { return nilaiSel(c, r, i); }).join('');
+            return '<div class="md-item' + (bisaKlik ? ' klik' : '') + (o.pilih ? ' ada-cek' : '') + (st.pilih[id] ? ' dipilih' : '') + '" data-baris="' + U.e(id) + '" tabindex="0" role="button" aria-label="Buka detail">' +
+              (o.pilih ? '<label class="cek md-cek"><input type="checkbox" data-pilih="' + U.e(id) + '"' + (st.pilih[id] ? ' checked' : '') + ' aria-label="Pilih"></label>' : '') +
+              '<div class="md-utama">' + nilaiSel(utama, r, i) + '</div>' +
+              '<div class="md-meta">' + meta.map(function (c) { return '<div class="md-f' + (/kanan/.test(c.kelas || '') ? ' angka' : '') + '"><span class="md-l">' + U.e(c.l || '') + '</span><div class="md-v">' + nilaiSel(c, r, i) + '</div></div>'; }).join('') + '</div>' +
+              '<div class="md-aksi">' + ak + '</div><span class="md-panah">' + ic('chevron-right', 'k') + '</span></div>';
+          }).join('') + '</div>';
+          if (o.kaki) h += '<div class="md-kaki tabel-wadah"><table class="tabel"><tfoot>' + o.kaki(rows) + '</tfoot></table></div>';
+          h += navHal(total, maksHal);
+        } else {
+          h += '<div class="tabel-wadah"><table class="tabel responsif"><thead><tr>' + (o.pilih ? '<th style="width:36px"><label class="cek"><input type="checkbox" data-pilih-semua></label></th>' : '') + o.kolom.map(function (c) { return '<th class="' + (c.kelas || '') + (c.urut !== false && c.k ? ' urut' : '') + '" data-urut="' + (c.urut !== false && c.k ? c.k : '') + '"' + (c.lebar ? ' style="width:' + c.lebar + '"' : '') + '>' + U.e(c.l) + (st.urut === c.k ? '<span class="panah">' + (st.arah > 0 ? '↑' : '↓') + '</span>' : '') + '</th>'; }).join('') + '</tr></thead><tbody>';
+          h += hal.map(function (r, i) { var id = r[o.idKunci || 'id']; return '<tr class="klik' + (st.pilih[id] ? ' dipilih' : '') + '" data-baris="' + U.e(id) + '">' + (o.pilih ? '<td data-l="Pilih"><label class="cek"><input type="checkbox" data-pilih="' + U.e(id) + '"' + (st.pilih[id] ? ' checked' : '') + '></label></td>' : '') + o.kolom.map(function (c, ci) { return '<td class="' + (c.kelas || '') + (ci === 0 && o.utamaM !== false ? ' utama-m' : '') + '" data-l="' + U.e(c.l) + '">' + nilaiSel(c, r, i) + '</td>'; }).join('') + '</tr>'; }).join('');
+          h += '</tbody>' + (o.kaki ? '<tfoot>' + o.kaki(rows) + '</tfoot>' : '') + '</table></div>' + navHal(total, maksHal);
+        }
         wadah.innerHTML = h;
         if (o.setelah) o.setelah(wadah, rows);
       }
+      function buka(id, el) { var r = o.rows.filter(function (x) { return String(x[o.idKunci || 'id']) === id; })[0]; if (!r) return; if (o.klik) o.klik(r, el); else UI.detailBaris(o, r); }
       wadah.addEventListener('click', function (e) {
+        var tb = e.target.closest('[data-tampil]'); if (tb) { st.tampil = tb.dataset.tampil; try { localStorage.setItem(kunciTampil, st.tampil); } catch (x) { } gambar(); return; }
+        if (e.target.closest('[data-arah]')) { st.arah = -st.arah; gambar(); return; }
         var th = e.target.closest('th[data-urut]'); if (th && th.dataset.urut) { st.arah = st.urut === th.dataset.urut ? -st.arah : 1; st.urut = th.dataset.urut; gambar(); return; }
         var hb = e.target.closest('[data-hal]'); if (hb) { st.hal += +hb.dataset.hal; gambar(); wadah.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
-        if (e.target.closest('label.cek, [data-a], a, button, input, select')) return;
-        var tr = e.target.closest('tr[data-baris]'); if (tr && o.klik) { var id = tr.dataset.baris; o.klik(o.rows.filter(function (r) { return String(r[o.idKunci || 'id']) === id; })[0], tr); }
+        if (e.target.closest('label.cek, [data-a], a, button, input, select, tfoot')) return;
+        var tr = e.target.closest('[data-baris]'); if (tr) buka(tr.dataset.baris, tr);
       });
+      wadah.addEventListener('keydown', function (e) { if (e.key !== 'Enter' && e.key !== ' ') return; var it = e.target.closest && e.target.closest('.md-item[data-baris]'); if (!it || e.target !== it) return; e.preventDefault(); buka(it.dataset.baris, it); });
       wadah.addEventListener('change', function (e) {
         if (e.target.matches('[data-f=per]')) { st.per = +e.target.value; st.hal = 0; gambar(); return; }
-        if (e.target.matches('[data-pilih]')) { var id = e.target.dataset.pilih; if (e.target.checked) st.pilih[id] = 1; else delete st.pilih[id]; e.target.closest('tr').classList.toggle('dipilih', e.target.checked); if (o.saatPilih) o.saatPilih(Object.keys(st.pilih)); }
+        if (e.target.matches('[data-f=urut-md]')) { st.urut = e.target.value || null; st.arah = 1; gambar(); return; }
+        if (e.target.matches('[data-pilih]')) { var id = e.target.dataset.pilih; if (e.target.checked) st.pilih[id] = 1; else delete st.pilih[id]; var bar = e.target.closest('[data-baris]'); if (bar) bar.classList.toggle('dipilih', e.target.checked); if (o.saatPilih) o.saatPilih(Object.keys(st.pilih)); }
         if (e.target.matches('[data-pilih-semua]')) { var on = e.target.checked; data().slice(st.hal * st.per, st.hal * st.per + st.per).forEach(function (r) { var id = r[o.idKunci || 'id']; if (on) st.pilih[id] = 1; else delete st.pilih[id]; }); gambar(); if (o.saatPilih) o.saatPilih(Object.keys(st.pilih)); }
       });
       gambar();
       return { cari: function (q) { st.q = q; st.hal = 0; gambar(); }, ganti: function (rows) { o.rows = rows; gambar(); }, dipilih: function () { return Object.keys(st.pilih); }, kosongkanPilihan: function () { st.pilih = {}; gambar(); }, data: data,
+        pilihSemua: function () { data().forEach(function (r) { st.pilih[r[o.idKunci || 'id']] = 1; }); gambar(); if (o.saatPilih) o.saatPilih(Object.keys(st.pilih)); },
         csv: function (nama) { U.unduh(nama + '.csv', U.csv(data(), o.kolom.filter(function (c) { return c.k; }).map(function (c) { return { k: c.k, l: c.l, csv: c.csv }; })), 'text/csv;charset=utf-8'); } };
+    },
+    /* Laci detail umum untuk daftar yang belum punya halaman detail sendiri */
+    detailBaris: function (o, r) {
+      var kol = o.kolom.filter(function (c) { return !/aksi-sel/.test(c.kelas || ''); }), utama = kol[0];
+      var judulHtml = utama ? (utama.f ? utama.f(r, 0) : U.e(r[utama.k])) : '', tmp = D.createElement('div'); tmp.innerHTML = judulHtml;
+      var judul = (tmp.querySelector('b, .utama-sel') || tmp).textContent.trim() || 'Detail';
+      var isi = '<div class="panel-lembut">' + judulHtml + '</div><dl class="info-grid mt-16">' + kol.slice(1).map(function (c) { var v = c.f ? c.f(r, 0) : U.e(r[c.k] == null || r[c.k] === '' ? '—' : r[c.k]); return '<div><dt>' + U.e(c.l || '') + '</dt><dd>' + v + '</dd></div>'; }).join('') + '</dl>';
+      UI.laci({ judul: judul, sub: r.id ? '<span class="mono">' + U.e(r.id) + '</span>' : '', ikon: o.ikonDetail || 'file-text', isi: isi });
     },
     /* Tanda tangan digital (kanvas) */
     ttd: function (kanvas) {
       var ctx = kanvas.getContext('2d'), gambar = false, ada = false, rasio = W.devicePixelRatio || 1;
-      function ukur() { var r = kanvas.getBoundingClientRect(); kanvas.width = r.width * rasio; kanvas.height = r.height * rasio; ctx.scale(rasio, rasio); ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0B132B'; }
+      /* Ukur ulang saat kanvas tampil/berubah ukuran (mis. bagian H yang semula tersembunyi); goresan dipertahankan */
+      function ukur() {
+        var r = kanvas.getBoundingClientRect(); if (!r.width || !r.height) return;
+        var w = Math.round(r.width * rasio), h = Math.round(r.height * rasio); if (kanvas.width === w && kanvas.height === h) return;
+        var lama = ada ? kanvas.toDataURL('image/png') : null;
+        kanvas.width = w; kanvas.height = h; ctx.setTransform(rasio, 0, 0, rasio, 0, 0); ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0B132B';
+        if (lama) { var im = new Image(); im.onload = function () { ctx.drawImage(im, 0, 0, r.width, r.height); }; im.src = lama; }
+      }
+      if (W.ResizeObserver) new ResizeObserver(function () { ukur(); }).observe(kanvas);
+      W.addEventListener('ttd-ukur', ukur);
       setTimeout(ukur, 50);
       function pos(e) { var r = kanvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
       kanvas.addEventListener('pointerdown', function (e) { gambar = true; ada = true; kanvas.setPointerCapture(e.pointerId); var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
@@ -486,11 +540,23 @@
       el.innerHTML = '<div class="grafik">' + s + '</div>' + this._tabel(o);
       this._hover(el, o, fmt);
     },
+    /* Kurva halus monoton (Fritsch–Carlson): mulus tanpa melampaui nilai data (tidak "tembus" 100%) */
+    _halus: function (p) {
+      var n = p.length; if (!n) return ''; if (n < 3) return 'M' + p.map(function (q) { return q[0].toFixed(1) + ',' + q[1].toFixed(1); }).join('L');
+      var dx = [], m = [], t = [], i;
+      for (i = 0; i < n - 1; i++) { dx[i] = p[i + 1][0] - p[i][0]; m[i] = dx[i] ? (p[i + 1][1] - p[i][1]) / dx[i] : 0; }
+      t[0] = m[0]; t[n - 1] = m[n - 2];
+      for (i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+      for (i = 0; i < n - 1; i++) { if (!m[i]) { t[i] = 0; t[i + 1] = 0; continue; } var a = t[i] / m[i], b = t[i + 1] / m[i], s = a * a + b * b; if (s > 9) { var k = 3 / Math.sqrt(s); t[i] = k * a * m[i]; t[i + 1] = k * b * m[i]; } }
+      var d = 'M' + p[0][0].toFixed(1) + ',' + p[0][1].toFixed(1);
+      for (i = 0; i < n - 1; i++) { var h = dx[i] / 3; d += 'C' + (p[i][0] + h).toFixed(1) + ',' + (p[i][1] + t[i] * h).toFixed(1) + ' ' + (p[i + 1][0] - h).toFixed(1) + ',' + (p[i + 1][1] - t[i + 1] * h).toFixed(1) + ' ' + p[i + 1][0].toFixed(1) + ',' + p[i + 1][1].toFixed(1); }
+      return d;
+    },
     garis: function (el, o) {
-      var fmt = o.fmt || U.angka, fmtS = o.fmtSumbu || fmt, d = this._baris(el, o), n = o.label.length, maks = 0, min = o.min != null ? o.min : 0;
+      var fmt = o.fmt || U.angka, fmtS = o.fmtSumbu || fmt, d = this._baris(el, o), n = o.label.length, maks = 0, min = o.min != null ? o.min : 0, uid = 'gg' + Math.random().toString(36).slice(2, 8), self = this;
       o.seri.forEach(function (sr) { sr.data.forEach(function (v) { maks = Math.max(maks, U.n(v)); }); }); var top = o.maks || skalaAtas(maks * 1.08);
       var x = function (i) { return d.kiri + (n === 1 ? d.iw / 2 : d.iw * i / (n - 1)); }, y = function (v) { return d.atas + d.ih - ((U.n(v) - min) / (top - min)) * d.ih; };
-      var s = '<svg width="' + d.w + '" height="' + d.h + '" viewBox="0 0 ' + d.w + ' ' + d.h + '" role="img" aria-label="' + U.e(o.aria || 'Grafik garis') + '"><g class="kisi">';
+      var s = '<svg width="' + d.w + '" height="' + d.h + '" viewBox="0 0 ' + d.w + ' ' + d.h + '" role="img" aria-label="' + U.e(o.aria || 'Grafik garis') + '"><defs>' + o.seri.map(function (sr, si) { var w = sr.warna || SERI[si]; return '<linearGradient id="' + uid + '-' + si + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:' + w + ';stop-opacity:.30"/><stop offset=".65" style="stop-color:' + w + ';stop-opacity:.07"/><stop offset="1" style="stop-color:' + w + ';stop-opacity:0"/></linearGradient>'; }).join('') + '</defs><g class="kisi">';
       for (var g = 0; g <= 4; g++) { var gy = d.atas + d.ih * g / 4; s += '<line x1="' + d.kiri + '" x2="' + (d.kiri + d.iw) + '" y1="' + gy + '" y2="' + gy + '"/>'; }
       s += '</g><g class="sumbu">'; for (g = 0; g <= 4; g++) s += '<text x="' + (d.kiri - 8) + '" y="' + (d.atas + d.ih * g / 4 + 3) + '" text-anchor="end">' + U.e(fmtS(min + (top - min) * (4 - g) / 4)) + '</text>';
       var lompat = Math.max(1, Math.ceil(n / Math.floor(d.iw / 58)));
@@ -499,15 +565,17 @@
       s += '</g><line class="dasar" x1="' + d.kiri + '" x2="' + (d.kiri + d.iw) + '" y1="' + (d.atas + d.ih) + '" y2="' + (d.atas + d.ih) + '"/>';
       if (o.acuan != null) s += '<line x1="' + d.kiri + '" x2="' + (d.kiri + d.iw) + '" y1="' + y(o.acuan) + '" y2="' + y(o.acuan) + '" stroke="#94A3B8" stroke-dasharray="4 4"/><text class="label-langsung" x="' + (d.kiri + d.iw) + '" y="' + (y(o.acuan) - 5) + '" text-anchor="end">' + U.e(o.acuanLabel || 'Target') + '</text>';
       o.seri.forEach(function (sr, si) {
-        var w = sr.warna || SERI[si], pts = sr.data.map(function (v, i) { return x(i) + ',' + y(v); });
-        if (o.area && si === 0) s += '<path class="area" fill="' + w + '" d="M' + x(0) + ',' + (d.atas + d.ih) + 'L' + pts.join('L') + 'L' + x(n - 1) + ',' + (d.atas + d.ih) + 'Z"/>';
-        s += '<path class="garis-seri" stroke="' + w + '" d="M' + pts.join('L') + '"/>';
-        if (o.seri.length <= 4) { var li = n - 1; s += '<circle cx="' + x(li) + '" cy="' + y(sr.data[li]) + '" r="4" fill="' + w + '" stroke="#fff" stroke-width="2"/>'; }
+        var w = sr.warna || SERI[si], pts = sr.data.map(function (v, i) { return [x(i), y(v)]; }), jalur = self._halus(pts);
+        if (o.area && si === 0 && n > 1) s += '<path class="area gradien" fill="url(#' + uid + '-' + si + ')" d="' + jalur + 'L' + x(n - 1).toFixed(1) + ',' + (d.atas + d.ih) + 'L' + x(0).toFixed(1) + ',' + (d.atas + d.ih) + 'Z"/>';
+        s += '<path class="garis-seri" stroke="' + w + '" d="' + jalur + '"/>';
+        if (o.seri.length <= 4) { var li = n - 1; s += '<circle class="titik-akhir" cx="' + x(li) + '" cy="' + y(sr.data[li]) + '" r="4.5" fill="' + w + '" stroke="#fff" stroke-width="2"/>'; }
       });
       s += '<line class="silang" data-silang x1="0" x2="0" y1="' + d.atas + '" y2="' + (d.atas + d.ih) + '" style="display:none"/>';
       for (var i = 0; i < n; i++) { var lx = n === 1 ? d.kiri : x(i) - d.iw / (n - 1) / 2; s += '<rect x="' + Math.max(d.kiri, lx) + '" y="' + d.atas + '" width="' + (n === 1 ? d.iw : d.iw / (n - 1)) + '" height="' + d.ih + '" fill="transparent" data-i="' + i + '" data-x="' + x(i) + '" tabindex="0"/>'; }
       s += '</svg>';
+      var pertama = !el.dataset.tergambar; el.dataset.tergambar = '1';
       el.innerHTML = '<div class="grafik">' + s + '</div>' + this._tabel(o);
+      if (pertama) qsa('.garis-seri', el).forEach(function (p) { try { var L = p.getTotalLength(); if (!L) return; p.style.strokeDasharray = L; p.style.strokeDashoffset = L; requestAnimationFrame(function () { requestAnimationFrame(function () { p.style.transition = 'stroke-dashoffset 1s cubic-bezier(.16,1,.3,1)'; p.style.strokeDashoffset = '0'; }); }); } catch (x) { } });
       this._hover(el, o, fmt);
     },
     _hover: function (el, o, fmt) {
@@ -533,6 +601,79 @@
       return '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" width="100%" height="' + h + '" aria-hidden="true"><path d="M' + pts.join('L') + '" fill="none" stroke="' + (warna || 'var(--merek-tua)') + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>';
     },
     kartu: function (id, judul, sub, o) { o = o || {}; return '<div class="kartu ' + (o.kelas || '') + '" data-grafik-kartu="' + id + '"><div class="kartu-kepala"><div><h2>' + U.e(judul) + '</h2>' + (sub ? '<p>' + sub + '</p>' : '') + '</div><div class="baris">' + (o.legenda || '') + (o.tanpaTabel ? '' : '<button type="button" class="btn mini hantu" data-tabel-grafik title="Tampilkan sebagai tabel">' + ic('table', 'k') + 'Tabel</button>') + (o.aksi || '') + '</div></div><div class="kartu-isi"><div id="' + id + '" style="min-height:' + (o.tinggi || 240) + 'px"></div></div></div>'; }
+  };
+
+  /* ===================== KOMPONEN v2: PILL, KALENDER HERO, AGENDA, TIMELINE ===================== */
+  UI.pil = function (o) {
+    return '<a class="pil' + (o.k ? ' pil-' + o.k : '') + '"' + (o.rute ? ' href="#/' + o.rute + '"' : '') + ' title="' + U.e(o.judul || o.l) + '"><span class="pil-ik">' + ic(o.ik || 'circle-dot') + '</span><span>' + U.e(o.l) + '</span><b>' + o.n + '</b>' + (o.s ? '<span class="pil-s">' + o.s + '</span>' : '') + '</a>';
+  };
+  var Kal = {
+    KAT: { hc: { l: 'Home Care', s: 'HC', w: 'var(--kat-hc)' }, hv: { l: 'Home Visit Medis', s: 'HV', w: 'var(--kat-hv)' }, rot: { l: 'Rotasi Perawat', s: 'Rotasi', w: 'var(--kat-rot)' }, sla: { l: 'Kasus/SLA', s: 'SLA', w: 'var(--kat-sla)' }, libur: { l: 'Libur & Cuti', s: 'Libur', w: 'var(--kat-libur)' } },
+    /* Kumpulkan event per tanggal dari data yang SUDAH ADA di server (tanpa aksi API baru). */
+    kumpulkan: function (src, bulan) {
+      var ev = {}, tambah = function (tg, x) { if (!tg) return; tg = String(tg).slice(0, 10); if (bulan && tg.slice(0, 7) !== bulan) return; (ev[tg] = ev[tg] || []).push(x); };
+      var semuaT = src.tugas || [], petaT = {}, lanjut = {};
+      semuaT.forEach(function (t) { petaT[t.id] = t; if (t.penugasan_asal) lanjut[t.penugasan_asal] = t; });
+      function pendek(s, n) { return String(s || '').split(/\s+/).slice(0, n || 2).join(' '); }
+      semuaT.forEach(function (t) {
+        if (t.status === 'Dibatalkan') return;
+        var asal = t.penugasan_asal ? petaT[t.penugasan_asal] : null, ganti = asal && asal.perawat_id !== t.perawat_id, rot = ganti || t.peran === 'Infal', ak = t.tanggal_akhir_aktual || t.tanggal_akhir;
+        var jenis = t.peran === 'Infal' ? 'Infal' : ganti ? 'Rotasi' : t.penugasan_asal ? 'Perpanjangan' : 'Mulai';
+        tambah(t.tanggal_mulai, { kat: rot ? 'rot' : 'hc', l: jenis + ' · ' + t.nama_pasien, p: pendek(t.nama_pasien), sub: (ganti ? (asal.nama_perawat || '') + ' → ' : '') + t.nama_perawat + ' (' + t.peran + ')', r: 'penugasan?id=' + t.id, urut: 1 });
+        var lj = lanjut[t.id];
+        if (ak && !(lj && lj.status !== 'Dibatalkan')) tambah(ak, { kat: rot ? 'rot' : 'hc', l: (t.tanggal_akhir_aktual && t.tanggal_akhir_aktual < t.tanggal_akhir ? 'Dihentikan · ' : 'Berakhir · ') + t.nama_pasien, p: 'Akhir · ' + pendek(t.nama_pasien), sub: t.nama_perawat, r: 'penugasan?id=' + t.id, urut: 3 });
+      });
+      (src.hv || []).forEach(function (x) { if (x.status === 'Batal') return; tambah(x.tanggal, { kat: 'hv', jam: String(x.jadwal_jam || '').slice(0, 5), l: x.jenis_tindakan + ' · ' + x.nama_pasien, p: pendek(x.jenis_tindakan, 2), sub: (x.nama_perawat || '') + (x.status_consent === 'Disetujui' ? ' · consent OK' : x.status === 'Selesai' ? '' : ' · consent belum'), r: 'homevisit?id=' + x.id, urut: 0, status: x.status }); });
+      (src.kasus || []).forEach(function (k) { if (!k.sla_tenggat || k.status === 'Selesai' || k.status === 'Dibatalkan') return; tambah(k.sla_tenggat, { kat: 'sla', jam: String(k.sla_tenggat).slice(11, 16), l: 'SLA · ' + k.judul, p: pendek(k.judul, 3), sub: (k.nama_pasien || k.jenis || '') + ' · ' + k.status, r: 'kasus?id=' + k.id, urut: 2, kritis: k.status === 'Overdue' }); });
+      (src.libur || []).forEach(function (l) { if (l.status === 'Batal') return; tambah(l.tanggal, { kat: 'libur', l: l.jenis + ' · ' + (l.nama_perawat || ''), p: (l.jenis === 'Libur jatah' ? 'Libur' : l.jenis) + ' · ' + pendek(String(l.nama_perawat || '').replace(/^(Ns\.|CG\.|Bdn\.)\s*/, ''), 1), sub: (l.nama_pasien || '') + (l.nama_pengganti ? ' → ' + l.nama_pengganti : '') + (Number(l.jumlah) > 1 ? ' · ' + l.jumlah + ' hari' : ''), r: 'libur', urut: 4 }); });
+      Object.keys(ev).forEach(function (k) { ev[k].sort(function (a, b) { return (a.jam || '99') < (b.jam || '99') ? -1 : (a.jam || '99') > (b.jam || '99') ? 1 : a.urut - b.urut; }); });
+      return ev;
+    },
+    /* o: { bulan, ev, kat:[id], mati:{id:true}, pilih:iso, maks, judul, aksi } */
+    html: function (o) {
+      var bulan = o.bulan, mati = o.mati || {}, maks = o.maks || 3, pr = bulan.split('-'), awal = new Date(+pr[0], +pr[1] - 1, 1), mulai = new Date(awal), hariIni = U.hariIni(), hit = {};
+      mulai.setDate(1 - ((awal.getDay() + 6) % 7));
+      Object.keys(o.ev).forEach(function (tg) { if (tg.slice(0, 7) === bulan) o.ev[tg].forEach(function (x) { hit[x.kat] = (hit[x.kat] || 0) + 1; }); });
+      var h = '<div class="kartu kalh" data-kalh><div class="kalh-kepala"><h2>' + U.e(o.judul || U.bulan(bulan)) + '</h2><div class="kalh-nav"><button type="button" class="btn ikon kecil hantu" data-kalh-nav="-1" aria-label="Bulan sebelumnya">' + ic('chevron-left') + '</button><button type="button" class="btn ikon kecil hantu" data-kalh-nav="1" aria-label="Bulan berikutnya">' + ic('chevron-right') + '</button><button type="button" class="btn mini" data-kalh-nav="0">Hari ini</button></div><span class="tumbuh"></span>' + (o.aksi || '') + '</div>';
+      h += '<div class="kalh-chip-baris" role="group" aria-label="Filter kategori">' + o.kat.map(function (k) { var K = Kal.KAT[k]; return '<button type="button" class="kalh-chip' + (mati[k] ? ' mati' : '') + '" data-kalh-chip="' + k + '" style="--w:' + K.w + '" aria-pressed="' + !mati[k] + '"><i></i>' + U.e(K.l) + '<span class="hit">' + (hit[k] || 0) + '</span></button>'; }).join('') + '</div>';
+      h += '<div class="kalh-grid">' + ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map(function (d) { return '<div class="kalh-hd">' + d + '</div>'; }).join('');
+      for (var i = 0; i < 42; i++) {
+        var d = new Date(mulai); d.setDate(mulai.getDate() + i); var iso = U.iso(d), luar = iso.slice(0, 7) !== bulan;
+        if (i >= 35 && luar) break;
+        var list = (o.ev[iso] || []).filter(function (x) { return !mati[x.kat]; });
+        h += '<div class="kalh-sel' + (luar ? ' luar' : '') + (iso === hariIni ? ' ini' : '') + (iso === o.pilih ? ' pilih' : '') + '" data-kalh-hari="' + iso + '" role="button" tabindex="0" aria-label="' + U.e(U.tglP(iso) + ' · ' + list.length + ' jadwal') + '"><span class="kalh-tg">' + d.getDate() + '</span>' +
+          list.slice(0, maks).map(function (x) { return '<span class="kalh-ev" style="--w:' + Kal.KAT[x.kat].w + '" data-rute="' + U.e(x.r) + '" title="' + U.e((x.jam ? x.jam + ' · ' : '') + x.l + ' — ' + x.sub) + '"><i></i><span>' + (x.jam ? U.e(x.jam.replace(':', '.')) + ' ' : '') + U.e(x.p || x.l) + '</span></span>'; }).join('') +
+          (list.length > maks ? '<span class="kalh-lagi">+' + (list.length - maks) + ' lagi</span>' : '') +
+          (list.length ? '<span class="kalh-titik">' + list.slice(0, 4).map(function (x) { return '<i style="--w:' + Kal.KAT[x.kat].w + '"></i>'; }).join('') + '</span>' : '') + '</div>';
+      }
+      return h + '</div>' + (o.kaki ? '<div class="kalh-kaki">' + o.kaki + '</div>' : '') + '</div>';
+    },
+    agenda: function (list, kosong) {
+      if (!list || !list.length) return '<div style="padding:22px 18px">' + (kosong || UI.kosong('Tidak ada jadwal', 'Hari ini tidak ada kunjungan, rotasi, maupun tenggat SLA.')) + '</div>';
+      return '<div class="agenda">' + list.map(function (x) { return '<div class="agenda-item" style="--w:' + Kal.KAT[x.kat].w + '" data-rute="' + U.e(x.r) + '" role="button" tabindex="0"><span class="jam">' + (x.jam ? U.e(x.jam.replace(':', '.')) : '—') + '<small>' + U.e(Kal.KAT[x.kat].s) + '</small></span><span class="bar"></span><span style="min-width:0"><b>' + U.e(x.l) + '</b><span class="sub">' + U.e(x.sub) + '</span></span>' + (x.kritis ? UI.lencana('Overdue', 'bahaya') : x.status === 'Selesai' ? UI.lencana('Selesai', 'ok') : '') + '</div>'; }).join('') + '</div>';
+    }
+  };
+  /* Timeline (Gantt) bulanan. o: { bulan, baris:[{nama, sub, ava, batang:[{mulai, akhir, w, l, judul, data:{k:v}, selesai}]}], kosong } */
+  var Gantt = {
+    html: function (o) {
+      var pr = o.bulan.split('-'), hari = new Date(+pr[0], +pr[1], 0).getDate(), awal = o.bulan + '-01', akhirB = o.bulan + '-' + (hari < 10 ? '0' : '') + hari, hariIni = U.hariIni();
+      var h = '<div class="gantt-wadah"><div class="gantt" style="--hari:' + hari + '"><div class="gantt-baris gantt-kepala"><div class="gantt-nm">' + U.e(o.kolom || 'Pasien') + '</div><div class="gantt-hari">';
+      for (var i = 1; i <= hari; i++) { var tg = o.bulan + '-' + (i < 10 ? '0' : '') + i, dd = U.parse(tg); h += '<span class="' + (dd.getDay() === 0 ? 'minggu' : '') + (tg === hariIni ? ' ini' : '') + '" title="' + U.tglP(tg) + '">' + i + '</span>'; }
+      h += '</div></div>';
+      if (!o.baris.length) h += '<div style="padding:28px">' + (o.kosong || UI.kosong('Tidak ada penugasan pada bulan ini', '')) + '</div>';
+      o.baris.forEach(function (b) {
+        h += '<div class="gantt-baris"><div class="gantt-nm">' + UI.ava(b.ava || b.nama, 'k') + '<div class="tumpuk"><b>' + U.e(b.nama) + '</b><span>' + U.e(b.sub || '') + '</span></div></div><div class="gantt-jalur">';
+        b.batang.forEach(function (t) {
+          var m = t.mulai < awal ? awal : t.mulai, a = t.akhir > akhirB ? akhirB : t.akhir; if (a < awal || m > akhirB) return;
+          var kiri = (U.selisihHari(awal, m)) / hari * 100, lebar = (U.selisihHari(m, a) + 1) / hari * 100;
+          var atr = Object.keys(t.data || {}).map(function (k) { return ' data-' + k + '="' + U.e(t.data[k]) + '"'; }).join('');
+          h += '<div class="gantt-batang' + (t.selesai ? ' selesai' : '') + (t.mulai < awal ? ' mulai-luar' : '') + (t.akhir > akhirB ? ' akhir-luar' : '') + '" style="--w:' + (t.w || 'var(--kat-hc)') + ';left:calc(' + kiri.toFixed(3) + '% + 2px);width:calc(' + lebar.toFixed(3) + '% - 4px)"' + atr + ' title="' + U.e(t.judul || t.l) + '" role="button" tabindex="0"><i></i><span>' + U.e(t.l) + '</span></div>';
+        });
+        if (hariIni >= awal && hariIni <= akhirB) h += '<span class="gantt-hariini" style="left:' + ((U.selisihHari(awal, hariIni) + .5) / hari * 100).toFixed(3) + '%"></span>';
+        h += '</div></div>';
+      });
+      return h + '</div></div>';
+    }
   };
 
   /* ===================== ROUTER ===================== */
@@ -618,19 +759,37 @@
       if (this.terpasang) return; this.terpasang = true;
       var b = Sesi.boot, me = Sesi.me, br = b.branding || {}, app = qs('#app'), ciut = (function () { try { return localStorage.getItem('cc_ciut') === '1'; } catch (x) { return false; } })();
       var logo = br.logo_gelap_url || br.logo_url || 'assets/logo.svg';
-      app.innerHTML = (API.mode === 'demo' ? '<div class="banner-mode' + (API.putus ? ' putus' : '') + '" id="banner-mode">' + ic(API.putus ? 'wifi-off' : 'flask-conical', 'k') + '<span class="tumbuh">' + (API.putus ? '<b>Server tidak terjangkau.</b><span class="b-panjang"> Aplikasi berjalan dalam <b>mode demo</b> dengan data contoh di peramban ini — data asli tidak berubah.</span><span class="b-pendek"> Mode demo aktif.</span>' : '<b>Mode demo</b><span class="b-panjang"> — data contoh tersimpan di peramban ini. Ubah <code>USE_MOCK</code> di <code>js/config.js</code> untuk terhubung ke server.</span><span class="b-pendek"> · data contoh di peramban</span>') + '</span>' + (API.putus ? '<button type="button" class="btn mini" data-coba-live>' + ic('rotate-cw') + 'Coba sambung lagi</button>' : '<button type="button" class="btn mini hantu" data-reset-demo>' + ic('rotate-ccw') + 'Reset data demo</button>') + '</div>' : '') +
-        '<div class="app' + (ciut ? ' ciut' : '') + '" id="kerangka"><aside class="sidebar" aria-label="Navigasi utama"><div class="sb-kepala"><span class="sb-logo"><img src="' + U.e(br.logo_url || 'assets/logo.svg') + '" alt=""></span><div class="sb-brand"><b>' + U.e(br.nama_brand || 'Capten Care') + '</b><span>' + U.e(br.tagline || 'Integrated System') + '</span></div><button type="button" class="sb-ciut" data-ciut aria-label="Ciutkan menu" title="Ciutkan menu">' + ic('panel-left-close', 'k') + '</button></div>' +
+      // v2: banner kuning dihapus. Mode demo ditandai chip kecil "DEMO"; server terputus → chip merah "TERPUTUS".
+      app.innerHTML = '<div class="app' + (ciut ? ' ciut' : '') + '" id="kerangka"><aside class="sidebar" aria-label="Navigasi utama"><div class="sb-kepala"><span class="sb-logo"><img src="' + U.e(br.logo_url || 'assets/logo.svg') + '" alt=""></span><div class="sb-brand"><b>' + U.e(br.nama_brand || 'Capten Care') + '</b><span>' + U.e(br.tagline || 'Integrated System') + '</span></div><button type="button" class="sb-ciut" data-ciut aria-label="Ciutkan menu" title="Ciutkan menu">' + ic('panel-left-close', 'k') + '</button></div>' +
         '<button type="button" class="sb-cari" data-palet>' + ic('search', 'k') + '<span>Cari apa saja…</span><kbd class="kbd">⌘K</kbd></button><nav class="sb-nav" id="sb-nav"></nav>' +
         '<div class="sb-kaki"><div class="sb-user" data-akun>' + UI.ava(me.nama, 'k') + '<div class="tumpuk" style="gap:0"><b class="potong">' + U.e(me.nama) + '</b><span>' + U.e(me.peran_label) + '</span></div>' + ic('chevrons-up-down', 'k') + '</div></div></aside>' +
         '<div class="utama"><header class="topbar"><button type="button" class="btn ikon hantu tb-menu" data-menu-hp aria-label="Buka menu">' + ic('menu') + '</button><nav class="remah" aria-label="Breadcrumb" id="remah"></nav><div class="tb-aksi">' +
         '<button type="button" class="tb-cari" data-palet aria-label="Cari">' + ic('search', 'k') + '<span class="teks">Cari pasien, perawat, invoice…</span><kbd class="kbd">⌘K</kbd></button>' +
+        '<a class="gauge" id="gauge" href="#/laporan" hidden aria-label="Kepatuhan operasional"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="jalur" cx="18" cy="18" r="15"/><circle class="busur" cx="18" cy="18" r="15"/></svg><span class="g-teks"><span class="g-lbl"><i></i><span data-g-lbl>Kepatuhan Operasional</span></span><b data-g-nilai>—</b></span></a>' +
         (API.mode === 'demo' ? '<label class="sim" title="Simulator peran: ganti akun demo, menu & izin berubah seketika">' + ic('user-round-cog', 'k') + '<span class="lbl">Peran</span><select data-sim aria-label="Simulator peran">' + PERAN_DEMO.map(function (p) { return '<option value="' + p.u + '"' + (p.u === me.username ? ' selected' : '') + '>' + U.e(p.l) + '</option>'; }).join('') + '</select></label>' : '') +
-        '<button type="button" class="mode-chip' + (API.mode === 'demo' ? ' demo' : '') + '" id="mode-chip" data-status-sistem title="Status koneksi"><i></i><span class="lbl">' + (API.mode === 'demo' ? 'DEMO' : 'LIVE') + '</span></button>' +
+        '<button type="button" class="mode-chip' + (API.mode === 'demo' ? ' demo' : '') + (API.putus ? ' putus' : '') + '" id="mode-chip" data-status-sistem title="' + (API.putus ? 'Server tidak terjangkau — klik untuk detail' : API.mode === 'demo' ? 'Mode demo: data contoh di peramban ini' : 'Terhubung ke server') + '"><i></i><span class="lbl">' + (API.putus ? 'TERPUTUS' : API.mode === 'demo' ? 'DEMO' : 'LIVE') + '</span></button>' +
         '<button type="button" class="btn ikon hantu lonceng" data-lonceng aria-label="Notifikasi">' + ic('bell') + '<span class="jml" id="jml-notif"' + (b.notif_belum ? '' : ' hidden') + '>' + (b.notif_belum > 99 ? '99+' : b.notif_belum) + '</span></button></div></header>' +
         '<main class="isi" id="isi" tabindex="-1"></main><footer class="kaki-app"><span>' + U.e(br.footer || '© PT. Nusantara Insan Sakti') + ' · ' + U.e(br.nama_aplikasi || '') + '</span><span>v' + VERSI + ' · <a href="#/bantuan">Bantuan & SOP</a> · Tekan <kbd>⌘K</kbd> untuk mencari</span></footer></div></div><nav class="bawah-nav" id="bawah-nav" aria-label="Navigasi cepat"></nav>';
       this.gambarMenu(); this.pasangEvent(); Layar.sembunyikan();
       Data.prefetch(this.daftarPrefetch());
       Poll.mulai();
+      this.muatGauge();
+    },
+    /* Gauge radial "Kepatuhan Operasional": laporan tepat waktu 30 hari (ADM/KEP/OPS).
+       Perawat: angka kepatuhan pribadi yang disediakan server (bulan berjalan). Peran lain: tidak tampil. */
+    muatGauge: function () {
+      var g = qs('#gauge'); if (!g || !Sesi.me) return; var p = Sesi.me.peran;
+      function pasang(persen, label, tip, rute) {
+        var el = qs('#gauge'); if (!el) return; var v = Math.max(0, Math.min(100, U.n(persen)));
+        el.hidden = false; el.href = '#/' + rute; el.title = tip;
+        qs('[data-g-lbl]', el).textContent = label; qs('[data-g-nilai]', el).textContent = U.angka(v, 1) + '%';
+        var titik = qs('.g-lbl i', el); titik.className = v >= 95 ? '' : v >= 80 ? 'warn' : 'bahaya';
+        var busur = qs('.busur', el), keliling = 2 * Math.PI * 15;
+        requestAnimationFrame(function () { requestAnimationFrame(function () { busur.style.strokeDashoffset = String(keliling * (1 - v / 100)); }); });
+      }
+      if (/^(ADM|KEP|OPS)$/.test(p)) Q('laporan.kepatuhan', {}).then(function (k) { var t = (k && k.total) || {}; pasang(t.persen, 'Kepatuhan Operasional', 'Laporan harian tepat waktu, 30 hari terakhir: ' + (t.tepat || 0) + ' tepat dari ' + (t.wajib || 0) + ' kewajiban', 'laporan'); }).catch(function () { });
+      else if (p === 'PRW') Q('dash.data', { rentang: 30 }).then(function (d) { var k = (d && d.kepatuhan) || {}; pasang(k.persen == null ? 100 : k.persen, 'Kepatuhan Saya', 'Laporan Anda yang tepat waktu, bulan berjalan: ' + (k.tepat || 0) + ' tepat dari ' + (k.wajib || 0) + ' kewajiban', 'riwayat'); }).catch(function () { });
+      else g.hidden = true;
     },
     daftarPrefetch: function () { var p = Sesi.me.peran, d = [['dash.data', { rentang: 30 }], ['notif.inapp', {}]]; if (/ADM|KEU|OPS|CS/.test(p)) d.push(['analitik.penjualan', {}]); if (/ADM|KEP|OPS/.test(p)) d.push(['laporan.kepatuhan', {}]); if (/ADM|CS|KEU|OPS|KEP/.test(p)) d.push(['so.list', {}]); if (p === 'PRW') d.push(['laporan.konteks', {}]); if (/ADM|CS|OPS/.test(p)) d.push(['pipeline.list', {}]); return d; },
     hancurkan: function () { if (!this.terpasang) return; this.terpasang = false; Poll.henti(); Router.sekarang = null; qs('#app').innerHTML = ''; },
@@ -653,9 +812,9 @@
       r.innerHTML = '<ol>' + item.join('') + '</ol>';
     },
     isiKosong: function (judul, pesan, ikon) { this.pasang(); var isi = qs('#isi'); isi.innerHTML = '<div class="kartu pad masuk" style="max-width:560px;margin:40px auto">' + UI.kosong(judul, pesan, '<a class="btn primer kecil mt-8" href="#/dashboard">' + ic('layout-dashboard') + 'Kembali ke Dashboard</a>') + '</div>'; },
-    segarkanLencana: U.debounce(function () { if (!Sesi.me) return; API.panggil('auth.boot', {}, { diam: true }).then(function (b) { var lama = JSON.stringify([Sesi.boot.menu, Sesi.boot.badge, Sesi.boot.modul]); Sesi.boot = b; Sesi.me = b.me; Tema.terapkan(b.branding); if (lama !== JSON.stringify([b.menu, b.badge, b.modul])) Shell.gambarMenu(); Shell.setNotif(b.notif_belum); }).catch(function () { }); }, 700),
+    segarkanLencana: U.debounce(function () { if (!Sesi.me) return; API.panggil('auth.boot', {}, { diam: true }).then(function (b) { var lama = JSON.stringify([Sesi.boot.menu, Sesi.boot.badge, Sesi.boot.modul]); Sesi.boot = b; Sesi.me = b.me; Tema.terapkan(b.branding); if (lama !== JSON.stringify([b.menu, b.badge, b.modul])) Shell.gambarMenu(); Shell.setNotif(b.notif_belum); Shell.muatGauge(); }).catch(function () { }); }, 700),
     setNotif: function (n) { var el = qs('#jml-notif'); if (!el) return; el.hidden = !n; el.textContent = n > 99 ? '99+' : n; },
-    statusKoneksi: function () { var c = qs('#mode-chip'); if (!c) return; c.classList.toggle('putus', API.putus && API.mode === 'live'); },
+    statusKoneksi: function () { var c = qs('#mode-chip'); if (!c) return; c.classList.toggle('putus', !!API.putus); var l = qs('.lbl', c); if (l) l.textContent = API.putus ? 'TERPUTUS' : API.mode === 'demo' ? 'DEMO' : 'LIVE'; c.title = API.putus ? 'Server tidak terjangkau — klik untuk detail' : API.mode === 'demo' ? 'Mode demo: data contoh di peramban ini' : 'Terhubung ke server'; },
     pasangEvent: function () {
       var app = qs('#app'), self = this;
       app.addEventListener('click', function (e) {
@@ -687,9 +846,13 @@
     },
     menuAkun: function (t) { var me = Sesi.me; UI.pop(t, [{ l: me.nama + ' · ' + me.username, i: 'user-round', fn: function () { Router.ke('profil'); } }, { l: 'Profil & ganti PIN', i: 'key-round', fn: function () { Router.ke('profil'); } }, { l: 'Pintasan keyboard', i: 'keyboard', fn: Pintasan.tampil }, { l: 'Bantuan & SOP', i: 'life-buoy', fn: function () { Router.ke('bantuan'); } }, '-', { l: 'Keluar', i: 'log-out', bahaya: true, fn: function () { Sesi.keluar(); } }]); },
     infoKoneksi: function (t) {
-      var isi = '<div class="info-grid"><div><dt>Mode</dt><dd>' + (API.mode === 'demo' ? 'Demo (data di peramban)' : 'Live — Apps Script') + '</dd></div><div><dt>Status</dt><dd>' + (API.putus ? '<span class="bahaya-t">Terputus</span>' : '<span class="ok-t">Terhubung</span>') + '</dd></div><div><dt>Waktu server terakhir</dt><dd>' + API.lastMs + ' ms</dd></div><div><dt>Versi</dt><dd>Aplikasi v' + VERSI + (API.versiServer ? ' · server v' + U.e(API.versiServer) : '') + '</dd></div><div class="penuh"><dt>Cache peramban</dt><dd>' + Object.keys(Data.c).length + ' set data · otomatis disegarkan setiap 30 detik saat dibuka</dd></div></div>';
-      var m = UI.modal({ judul: 'Status koneksi', ikon: API.mode === 'demo' ? 'flask-conical' : 'radio-tower', sempit: true, isi: isi, kaki: '<button type="button" class="btn" data-tutup>Tutup</button><button type="button" class="btn primer" data-segar>' + ic('refresh-cw') + 'Segarkan data</button>' });
-      m.el.querySelector('[data-segar]').onclick = function () { var b = this; UI.kerja(b, function () { Data.hapusSemua(); return API.mode === 'live' && Sesi.me.peran === 'ADM' ? T('sistem.segarkan', {}) : null; }).then(function () { m.tutup(); Router.tampilkan(); UI.toast('Data disegarkan dari server.', 'ok'); }); };
+      var panel = API.putus ? '<div class="panel-bahaya mb-12">' + ic('wifi-off', 'k') + '<div><b>Server tidak terjangkau.</b> ' + (API.mode === 'demo' ? 'Aplikasi sementara berjalan dalam mode demo dengan data contoh di peramban ini — data asli tidak berubah.' : 'Perubahan tidak dapat disimpan sampai koneksi pulih.') + '</div></div>' : API.mode === 'demo' ? '<div class="panel-info mb-12">' + ic('flask-conical', 'k') + '<div><b>Mode demo.</b> Data contoh tersimpan di peramban ini. Ubah <code>USE_MOCK</code> di <code>js/config.js</code> untuk terhubung ke server.</div></div>' : '';
+      var isi = panel + '<div class="info-grid"><div><dt>Mode</dt><dd>' + (API.mode === 'demo' ? 'Demo (data di peramban)' : 'Live — Apps Script') + '</dd></div><div><dt>Status</dt><dd>' + (API.putus ? '<span class="bahaya-t">Terputus</span>' : '<span class="ok-t">Terhubung</span>') + '</dd></div><div><dt>Waktu server terakhir</dt><dd>' + API.lastMs + ' ms</dd></div><div><dt>Versi</dt><dd>Aplikasi v' + VERSI + (API.versiServer ? ' · server v' + U.e(API.versiServer) : '') + '</dd></div><div class="penuh"><dt>Cache peramban</dt><dd>' + Object.keys(Data.c).length + ' set data · otomatis disegarkan setiap 30 detik saat dibuka</dd></div></div>';
+      var kiri = API.putus ? '<div class="kiri"><button type="button" class="btn kecil" data-coba-live>' + ic('rotate-cw') + 'Coba sambung lagi</button></div>' : API.mode === 'demo' ? '<div class="kiri"><button type="button" class="btn kecil hantu" data-reset-demo>' + ic('rotate-ccw') + 'Reset data demo</button></div>' : '';
+      var m = UI.modal({ judul: 'Status koneksi', ikon: API.putus ? 'wifi-off' : API.mode === 'demo' ? 'flask-conical' : 'radio-tower', ikonKelas: API.putus ? 'bahaya' : '', sempit: true, isi: isi, kaki: kiri + '<button type="button" class="btn" data-tutup>Tutup</button><button type="button" class="btn primer" data-segar>' + ic('refresh-cw') + 'Segarkan data</button>' });
+      m.el.querySelector('[data-segar]').onclick = function () { var b = this; UI.kerja(b, function () { Data.hapusSemua(); return API.mode === 'live' && Sesi.me.peran === 'ADM' ? T('sistem.segarkan', {}) : null; }).then(function () { m.tutup(); Router.tampilkan(); Shell.muatGauge(); UI.toast('Data disegarkan dari server.', 'ok'); }); };
+      m.on('click', '[data-reset-demo]', function () { m.tutup(); Shell.resetDemo(); });
+      m.on('click', '[data-coba-live]', function () { location.reload(); });
     },
     resetDemo: function () { UI.konfirmasi({ judul: 'Reset data demo?', pesan: 'Semua perubahan yang Anda buat di mode demo dihapus dan data contoh dibuat ulang mengikuti tanggal hari ini.', ok: 'Reset data', bahaya: true }).then(function (v) { if (!v) return; var pr = UI.proses('Membuat ulang data demo', ['Menghapus data lama', 'Membuat pasien, perawat & penugasan', 'Membuat laporan, invoice & payroll']); setTimeout(function () { pr.langkah(1); setTimeout(function () { W.CCDemo.reset(); pr.langkah(2); var u = Sesi.me.username, p = PERAN_DEMO.filter(function (x) { return x.u === u; })[0] || PERAN_DEMO[0]; Sesi.masuk(p.u, p.p, { instan: true }).then(function () { pr.selesai(); Shell.terpasang = false; Shell.pasang(); Router.tampilkan(); UI.toast('Data demo dibuat ulang.', 'ok'); }); }, 60); }, 300); }); }
   };
@@ -788,6 +951,6 @@
   function beralihDemo() { API.mode = 'demo'; API.putus = true; Sesi.hapus(); return API.muatDemo().then(function () { setTimeout(function () { UI.toast('Server tidak terjangkau. Aplikasi beralih ke mode demo; data asli tidak tersentuh.', 'warn', { judul: 'Mode demo otomatis', durasi: 8000 }); }, 600); return null; }); }
   if ('serviceWorker' in navigator && location.protocol === 'https:') W.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () { }); });
 
-  W.CCApp = { U: U, ic: ic, qs: qs, qsa: qsa, API: API, Data: Data, Q: Q, T: T, Sesi: Sesi, UI: UI, G: G, Router: Router, Shell: Shell, Tema: Tema, Layar: Layar, htmlPemuat: htmlPemuat, kelasStatus: kelasStatus, PERAN_DEMO: PERAN_DEMO, VERSI: VERSI, beralihDemo: beralihDemo, ruteEvent: ruteEvent, CFG: CFG, Muat: Muat };
+  W.CCApp = { U: U, ic: ic, qs: qs, qsa: qsa, API: API, Data: Data, Q: Q, T: T, Sesi: Sesi, UI: UI, G: G, Kal: Kal, Gantt: Gantt, Router: Router, Shell: Shell, Tema: Tema, Layar: Layar, htmlPemuat: htmlPemuat, kelasStatus: kelasStatus, PERAN_DEMO: PERAN_DEMO, VERSI: VERSI, beralihDemo: beralihDemo, ruteEvent: ruteEvent, CFG: CFG, Muat: Muat };
   if (D.readyState === 'complete') setTimeout(mulai, 0); else D.addEventListener('DOMContentLoaded', function () { setTimeout(mulai, 0); });
 })(window, document);

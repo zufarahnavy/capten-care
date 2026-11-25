@@ -5,7 +5,7 @@
  * ===================================================================== */
 (function () {
   'use strict';
-  var A = window.CCApp, U = A.U, ic = A.ic, UI = A.UI, G = A.G, Q = A.Q, T = A.T, R = A.Router, qs = A.qs, qsa = A.qsa, e = U.e;
+  var A = window.CCApp, U = A.U, ic = A.ic, UI = A.UI, G = A.G, Kal = A.Kal, Q = A.Q, T = A.T, R = A.Router, qs = A.qs, qsa = A.qsa, e = U.e;
   A.F = A.F || {};
   function M() { return A.Sesi.boot.master || {}; }
   function paketOpsi() { return (A.Sesi.boot.paket || []).filter(function (p) { return p.aktif === 'YA'; }).map(function (p) { return { v: p.id, l: p.nama_paket }; }); }
@@ -186,16 +186,29 @@
         if (ctx.basi()) return;
         var rows = d.rows, g = { berjalan: rows.filter(function (r) { return r.status === 'Berjalan'; }), berakhir: rows.filter(function (r) { return r.status === 'Berjalan' && r.sisa_hari <= 3; }), selesai: rows.filter(function (r) { return r.status !== 'Berjalan'; }), semua: rows };
         var lihatGaji = rows.some(function (r) { return r.gaji_deal !== '' && r.gaji_deal != null; });
-        ctx.el.innerHTML = UI.kepala('Penugasan & Rotasi', 'Siapa merawat siapa, sampai kapan · rotasi otomatis mencatat turnover & meminta form handover', (bisaBuat ? '<button type="button" class="btn kecil" data-a="idf">' + ic('clipboard-pen') + '<span>Minta handover</span></button>' + UI.btn('Penugasan baru', { k: 'primer kecil', a: 'baru', i: 'plus', kunci: 'n' }) : '')) +
+        st.tampil = st.tampil || 'timeline'; st.bulan = st.bulan || U.bulanIni();
+        ctx.el.innerHTML = UI.kepala('Penugasan & Rotasi', 'Siapa merawat siapa, sampai kapan · rotasi otomatis mencatat turnover & meminta form handover', UI.segmen([{ v: 'timeline', l: 'Timeline' }, { v: 'daftar', l: 'Daftar' }], st.tampil, 'tampil') + (bisaBuat ? '<button type="button" class="btn kecil" data-a="idf">' + ic('clipboard-pen') + '<span>Minta handover</span></button>' + UI.btn('Penugasan baru', { k: 'primer kecil', a: 'baru', i: 'plus', kunci: 'n' }) : '')) +
           '<div class="grid g4 kpi-baris masuk">' + UI.kpi({ label: 'Penugasan berjalan', nilai: g.berjalan.length, utama: true, ikon: 'repeat', sub: g.berjalan.filter(function (r) { return r.peran === 'Utama'; }).length + ' utama · ' + g.berjalan.filter(function (r) { return r.peran === 'Infal'; }).length + ' infal' }) + UI.kpi({ label: 'Berakhir ≤ 3 hari', nilai: g.berakhir.length, ikon: 'calendar-clock', sub: 'draf perpanjangan disiapkan sistem' }) + UI.kpi({ label: 'Perawat siaga', nilai: d.siaga.length, ikon: 'shield', sub: 'siap rotasi / infal' }) + UI.kpi({ label: 'Libur terpakai', nilai: U.jumlah(g.berjalan, 'libur_terpakai') + '<small>/' + U.jumlah(g.berjalan, 'jatah') + '</small>', ikon: 'sunrise', sub: 'hari dari jatah periode berjalan' }) + '</div>' +
-          '<div class="mt-16">' + UI.tab([{ id: 'berjalan', l: 'Berjalan', n: g.berjalan.length }, { id: 'berakhir', l: 'Segera berakhir', n: g.berakhir.length }, { id: 'selesai', l: 'Selesai / dihentikan', n: g.selesai.length }, { id: 'semua', l: 'Semua', n: rows.length }], st.tab) + '</div>' +
-          '<div class="saring pudar">' + UI.cari(st.q, 'Cari pasien, perawat, nomor…') + '<button type="button" class="btn kecil" data-a="csv">' + ic('download') + 'CSV</button></div><div class="kartu pudar"><div data-tabel></div></div>';
-        var tbl = UI.tabel(qs('[data-tabel]', ctx.el), { rows: g[st.tab], cariKunci: ['nama_pasien', 'nama_perawat', 'id', 'nama_paket', 'wilayah'], urut: st.tab === 'berakhir' ? 'sisa_hari' : null, klik: function (r) { detailTugas(r, d); },
-          kolom: [{ k: 'nama_pasien', l: 'Pasien', f: function (r) { return '<b>' + e(r.nama_pasien) + '</b><div class="sub-sel">' + e(r.id) + ' · ' + e(r.wilayah || '') + '</div>'; } }, { k: 'nama_perawat', l: 'Perawat', f: function (r) { return '<div class="baris">' + UI.ava(r.nama_perawat, 'k') + '<div><div>' + e(r.nama_perawat) + '</div><div class="sub-sel">' + e(r.peran) + ' · shift ' + e(r.shift) + '</div></div></div>'; } }, { k: 'nama_paket', l: 'Paket', f: function (r) { return '<span class="tag merek">' + e(r.nama_paket || '—') + '</span>'; } }, { k: 'tanggal_mulai', l: 'Periode', f: function (r) { return U.tglK(r.tanggal_mulai) + ' – ' + U.tgl(r.tanggal_akhir_aktual || r.tanggal_akhir) + '<div class="sub-sel">hari ke-' + r.hari_ke + ' dari ' + r.lama_hari + '</div>'; } }, { k: 'sisa_hari', l: 'Sisa', kelas: 'kanan', f: function (r) { return r.status !== 'Berjalan' ? '—' : UI.lencana(r.sisa_hari < 0 ? 'Lewat ' + (-r.sisa_hari) + ' h' : r.sisa_hari + ' hari', r.sisa_hari <= 3 ? 'warn' : 'netral'); } }, { k: 'libur_terpakai', l: 'Libur', kelas: 'kanan', f: function (r) { return r.libur_terpakai + '/' + r.jatah; } }].concat(lihatGaji ? [{ k: 'gaji_deal', l: 'Gaji deal', kelas: 'kanan', f: function (r) { return '<span class="angka">' + U.rp(r.gaji_deal) + '</span><div class="sub-sel">Metode ' + e(r.metode_gaji) + '</div>'; } }] : []).concat([{ k: 'status', l: 'Status', f: function (r) { return UI.lencana(r.status); } }, { k: 'id', l: '', urut: false, kelas: 'aksi-sel', f: function (r) { return r.status === 'Berjalan' && bisaRotasi ? '<button type="button" class="btn mini" data-a="rotasi" data-id="' + e(r.id) + '">' + ic('repeat', 'k') + 'Rotasi</button>' : ''; } }]) });
-        if (st.q) tbl.cari(st.q);
-        ctx.on('input', '[data-f=q]', U.debounce(function (i) { st.q = i.value; tbl.cari(i.value); }, 150));
+          (st.tampil === 'timeline'
+            ? '<div class="saring mt-16 pudar"><div class="kalh-nav"><button type="button" class="btn ikon kecil" data-bln="-1" aria-label="Bulan sebelumnya">' + ic('chevron-left') + '</button><b style="min-width:150px;text-align:center;font:700 14px var(--f-judul)">' + U.bulan(st.bulan) + '</b><button type="button" class="btn ikon kecil" data-bln="1" aria-label="Bulan berikutnya">' + ic('chevron-right') + '</button><button type="button" class="btn mini" data-bln="0">Bulan ini</button></div>' + UI.cari(st.q, 'Cari pasien, perawat, nomor…') + '<div class="legenda"><span><i style="background:var(--kat-hc)"></i>Utama</span><span><i style="background:var(--kat-rot)"></i>Infal</span><span><i style="background:var(--kat-libur)"></i>Selesai / dihentikan</span></div></div><div class="kartu pudar" data-gantt></div><p class="kecil redup mt-8">' + ic('info', 'k') + ' Klik batang untuk membuka detail penugasan, surat tugas, dan rotasi.</p>'
+            : '<div class="mt-16">' + UI.tab([{ id: 'berjalan', l: 'Berjalan', n: g.berjalan.length }, { id: 'berakhir', l: 'Segera berakhir', n: g.berakhir.length }, { id: 'selesai', l: 'Selesai / dihentikan', n: g.selesai.length }, { id: 'semua', l: 'Semua', n: rows.length }], st.tab) + '</div>' +
+              '<div class="saring pudar">' + UI.cari(st.q, 'Cari pasien, perawat, nomor…') + '<button type="button" class="btn kecil" data-a="csv">' + ic('download') + 'CSV</button></div><div class="kartu pudar"><div data-tabel></div></div>');
+        var tbl = null;
+        function gambarGantt() { var w = qs('[data-gantt]', ctx.el); if (w) w.innerHTML = A.Gantt.html({ bulan: st.bulan, baris: barisGantt(rows, st.bulan, st.q) }); }
+        if (st.tampil === 'timeline') gambarGantt();
+        else {
+          tbl = UI.tabel(qs('[data-tabel]', ctx.el), { rows: g[st.tab], cariKunci: ['nama_pasien', 'nama_perawat', 'id', 'nama_paket', 'wilayah'], urut: st.tab === 'berakhir' ? 'sisa_hari' : null, klik: function (r) { detailTugas(r, d); },
+            kolom: [{ k: 'nama_pasien', l: 'Pasien', f: function (r) { return '<b>' + e(r.nama_pasien) + '</b><div class="sub-sel">' + e(r.id) + ' · ' + e(r.wilayah || '') + '</div>'; } }, { k: 'nama_perawat', l: 'Perawat', f: function (r) { return '<div class="baris">' + UI.ava(r.nama_perawat, 'k') + '<div><div>' + e(r.nama_perawat) + '</div><div class="sub-sel">' + e(r.peran) + ' · shift ' + e(r.shift) + '</div></div></div>'; } }, { k: 'nama_paket', l: 'Paket', f: function (r) { return '<span class="tag merek">' + e(r.nama_paket || '—') + '</span>'; } }, { k: 'tanggal_mulai', l: 'Periode', f: function (r) { return U.tglK(r.tanggal_mulai) + ' – ' + U.tgl(r.tanggal_akhir_aktual || r.tanggal_akhir) + '<div class="sub-sel">hari ke-' + r.hari_ke + ' dari ' + r.lama_hari + '</div>'; } }, { k: 'sisa_hari', l: 'Sisa', kelas: 'kanan', f: function (r) { return r.status !== 'Berjalan' ? '—' : UI.lencana(r.sisa_hari < 0 ? 'Lewat ' + (-r.sisa_hari) + ' h' : r.sisa_hari + ' hari', r.sisa_hari <= 3 ? 'warn' : 'netral'); } }, { k: 'libur_terpakai', l: 'Libur', kelas: 'kanan', f: function (r) { return r.libur_terpakai + '/' + r.jatah; } }].concat(lihatGaji ? [{ k: 'gaji_deal', l: 'Gaji deal', kelas: 'kanan', f: function (r) { return '<span class="angka">' + U.rp(r.gaji_deal) + '</span><div class="sub-sel">Metode ' + e(r.metode_gaji) + '</div>'; } }] : []).concat([{ k: 'status', l: 'Status', f: function (r) { return UI.lencana(r.status); } }, { k: 'id', l: '', urut: false, kelas: 'aksi-sel', f: function (r) { return r.status === 'Berjalan' && bisaRotasi ? '<button type="button" class="btn mini" data-a="rotasi" data-id="' + e(r.id) + '">' + ic('repeat', 'k') + 'Rotasi</button>' : ''; } }]) });
+          if (st.q) tbl.cari(st.q);
+        }
+        ctx.on('input', '[data-f=q]', U.debounce(function (i) { st.q = i.value; if (tbl) tbl.cari(i.value); else gambarGantt(); }, 150));
         ctx.on('click', '[data-tab]', function (b) { st.tab = b.dataset.tab; R.muatUlang(); });
-        ctx.aksi({ baru: function () { formTugas(d); }, idf: function () { A.F.mintaIdf(); }, csv: function () { tbl.csv('penugasan-' + U.hariIni()); }, rotasi: function (b) { rotasi(rows.filter(function (r) { return r.id === b.dataset.id; })[0], d); } });
+        ctx.on('click', '[data-segmen=tampil] button', function (b) { st.tampil = b.dataset.v; R.muatUlang(); });
+        ctx.on('click', '[data-bln]', function (b) { var v = +b.dataset.bln; st.bulan = v ? U.tambahBulan(st.bulan, v) : U.bulanIni(); gambarGantt(); qs('.saring b', ctx.el).textContent = U.bulan(st.bulan); });
+        function bukaBatang(b) { var t = rows.filter(function (r) { return r.id === b.dataset.tugas; })[0]; if (t) detailTugas(t, d); }
+        ctx.on('click', '[data-tugas]', bukaBatang);
+        ctx.on('keydown', '[data-tugas]', function (b, ev) { if (ev.key === 'Enter') bukaBatang(b); });
+        ctx.aksi({ baru: function () { formTugas(d); }, idf: function () { A.F.mintaIdf(); }, csv: function () { if (tbl) tbl.csv('penugasan-' + U.hariIni()); }, rotasi: function (b) { rotasi(rows.filter(function (r) { return r.id === b.dataset.id; })[0], d); } });
         if (ctx.q.baru && bisaBuat) setTimeout(function () { formTugas(d); }, 150);
         if (ctx.q.id) { var t0 = rows.filter(function (r) { return r.id === ctx.q.id; })[0]; if (t0) setTimeout(function () { detailTugas(t0, d); }, 150); }
       });
@@ -229,27 +242,51 @@
     m.on('click', '[data-henti]', function () { m.tutup(); UI.formModal({ judul: 'Hentikan penugasan lebih awal', sub: e(t.nama_pasien) + ' · ' + e(t.nama_perawat), ikon: 'octagon-x', data: { tanggal_akhir_aktual: U.hariIni() }, atas: '<div class="panel-peringatan mb-12">' + ic('triangle-alert', 'k') + '<div>Gaji dihitung prorata (Metode B). Alasan dari pihak klien (biaya, sudah sehat, wafat, pindah) menonaktifkan pasien.</div></div>', fields: [{ k: 'tanggal_akhir_aktual', l: 'Tanggal akhir aktual', t: 'tanggal', wajib: true, lebar: 'l3' }, { k: 'alasan', l: 'Alasan', t: 'pilih', wajib: true, opsi: (M().alasan_turnover || []).concat(['Resign tanpa pemberitahuan', 'Meninggalkan tugas tanpa izin']), lebar: 'l3' }, { k: 'alasan_detail', l: 'Keterangan', t: 'area' }], simpanLabel: 'Hentikan', simpan: function (v) { v.id = t.id; return T('penugasan.hentikan', v); }, selesai: function () { R.muatUlang(); } }); });
   }
 
-  /* ===================== JADWAL & KALENDER ===================== */
+  /* ===================== JADWAL & KALENDER (v2: kalender interaktif + timeline) ===================== */
+  function barisGantt(rows, bulan, q) {
+    var awal = bulan + '-01', akhir = U.tambahHari(U.tambahBulan(bulan, 1) + '-01', -1), grup = {};
+    rows.forEach(function (t) {
+      if (t.status === 'Dibatalkan') return; var ak = t.tanggal_akhir_aktual || t.tanggal_akhir;
+      if (ak < awal || t.tanggal_mulai > akhir) return;
+      if (q && !U.cocok(t, q, ['nama_pasien', 'nama_perawat', 'id', 'wilayah', 'nama_paket'])) return;
+      (grup[t.pasien_id] = grup[t.pasien_id] || { nama: t.nama_pasien, sub: (t.nama_paket || '') + (t.wilayah ? ' · ' + t.wilayah : ''), batang: [] }).batang.push({ mulai: t.tanggal_mulai, akhir: ak, w: t.peran === 'Infal' ? 'var(--kat-rot)' : 'var(--kat-hc)', l: String(t.nama_perawat || '').replace(/,.*$/, ''), judul: t.nama_perawat + ' · ' + t.peran + ' · ' + U.tgl(t.tanggal_mulai) + ' – ' + U.tgl(ak) + ' · ' + t.status, selesai: t.status !== 'Berjalan', data: { tugas: t.id } });
+    });
+    return Object.keys(grup).map(function (k) { return grup[k]; }).sort(function (a, b) { return a.nama.localeCompare(b.nama, 'id'); });
+  }
+  A.F.barisGantt = barisGantt;
   R.daftar('jadwal', {
     judul: 'Jadwal & Kalender',
     render: function (ctx) {
-      var st = ctx.st, p = ctx.me.peran; st.bulan = st.bulan || U.bulanIni();
-      var sumber = [/ADM|KEP|CS|OPS|KEU|HRD/.test(p) ? Q('penugasan.list', {}) : Promise.resolve(null), /ADM|HV|HVK|OPS/.test(p) ? Q('hv.list', { bulan: st.bulan }) : Promise.resolve([]), /ADM|KEP|CS|HRD|OPS|KEU/.test(p) ? Q('libur.list', { bulan: st.bulan }) : Promise.resolve([])];
+      var st = ctx.st, p = ctx.me.peran; st.bulan = st.bulan || U.bulanIni(); st.mati = st.mati || {}; st.pilih = st.pilih || U.hariIni(); st.tampil = st.tampil || 'kalender';
+      var bisaTugas = /ADM|KEP|CS|OPS|KEU|HRD/.test(p), bisaHv = /ADM|HV|OPS/.test(p), bisaLibur = /ADM|KEP|CS|HRD|OPS|KEU/.test(p), bisaKasus = /ADM|KEP|HV|CS|HRD|OPS/.test(p);
+      var sumber = [bisaTugas ? Q('penugasan.list', {}) : Promise.resolve(null), bisaHv ? Q('hv.list', { bulan: st.bulan }) : Promise.resolve(null), bisaLibur ? Q('libur.list', { bulan: st.bulan }) : Promise.resolve(null), bisaKasus ? Q('kasus.list', {}) : Promise.resolve(null)];
       return Promise.all(sumber.map(function (x) { return x.catch(function () { return null; }); })).then(function (h) {
         if (ctx.basi()) return;
-        var ev = {}, tambah = function (tg, x) { (ev[tg] = ev[tg] || []).push(x); };
-        ((h[0] || {}).rows || []).forEach(function (t) { if (t.tanggal_mulai.slice(0, 7) === st.bulan) tambah(t.tanggal_mulai, { k: '', l: 'Mulai · ' + t.nama_pasien, sub: t.nama_perawat + ' (' + t.peran + ')', r: 'penugasan?id=' + t.id }); var ak = t.tanggal_akhir_aktual || t.tanggal_akhir; if (ak.slice(0, 7) === st.bulan) tambah(ak, { k: 'akhir', l: 'Akhir · ' + t.nama_pasien, sub: t.nama_perawat, r: 'penugasan?id=' + t.id }); });
-        (h[1] || []).forEach(function (x) { tambah(x.tanggal, { k: 'hv', l: String(x.jadwal_jam).replace(':', '.') + ' ' + x.jenis_tindakan, sub: x.nama_pasien + ' · ' + (x.nama_perawat || ''), r: 'homevisit?id=' + x.id }); });
-        (h[2] || []).forEach(function (l) { if (l.status === 'Batal') return; tambah(l.tanggal, { k: 'libur', l: l.jenis + ' · ' + (l.nama_perawat || ''), sub: (l.nama_pasien || '') + (l.nama_pengganti ? ' → ' + l.nama_pengganti : ''), r: 'libur' }); });
-        var pr = st.bulan.split('-'), awal = new Date(+pr[0], +pr[1] - 1, 1), mulaiGrid = new Date(awal); mulaiGrid.setDate(1 - ((awal.getDay() + 6) % 7));
-        var html = UI.kepala('Jadwal & Kalender', 'Mulai/akhir penugasan, kunjungan home visit, libur & infal dalam satu tampilan', '<button type="button" class="btn kecil ikon" data-a="prev" aria-label="Bulan sebelumnya">' + ic('chevron-left') + '</button><b style="min-width:140px;text-align:center;font:700 14px var(--f-judul)">' + U.bulan(st.bulan) + '</b><button type="button" class="btn kecil ikon" data-a="next" aria-label="Bulan berikutnya">' + ic('chevron-right') + '</button><button type="button" class="btn kecil" data-a="ini">Hari ini</button>');
-        html += '<div class="legenda mb-12 masuk"><span><i style="background:var(--merek-tua)"></i>Mulai penugasan</span><span><i style="background:var(--warn-dot)"></i>Akhir penugasan</span><span><i style="background:var(--ok-dot)"></i>Home visit</span><span><i style="background:var(--netral-dot)"></i>Libur / cuti / infal</span></div>';
-        html += '<div class="kartu masuk-2" style="overflow:hidden"><div class="kal">' + ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map(function (d) { return '<div class="hd">' + d + '</div>'; }).join('');
-        for (var i = 0; i < 42; i++) { var d = new Date(mulaiGrid); d.setDate(mulaiGrid.getDate() + i); var iso = U.iso(d), luar = iso.slice(0, 7) !== st.bulan, list = ev[iso] || []; if (i >= 35 && luar && d.getDate() > 7) break; html += '<div class="hr' + (luar ? ' luar' : '') + (iso === U.hariIni() ? ' ini' : '') + '"><span class="tg">' + d.getDate() + '</span>' + list.slice(0, 3).map(function (x) { return '<span class="ev ' + x.k + '" data-rute="' + x.r + '" title="' + e(x.l + ' — ' + x.sub) + '">' + e(x.l) + '</span>'; }).join('') + (list.length > 3 ? '<button type="button" class="btn mini hantu" data-hari="' + iso + '" style="height:20px;padding:0 4px;font-size:10.5px">+' + (list.length - 3) + ' lagi</button>' : '') + '</div>'; }
-        html += '</div></div>';
+        var tugas = h[0] ? h[0].rows || [] : null, ev = Kal.kumpulkan({ tugas: tugas || [], hv: h[1] || [], libur: h[2] || [], kasus: h[3] ? h[3].rows || [] : [] }, null);
+        var kat = []; if (tugas) kat.push('hc'); if (h[1]) kat.push('hv'); if (tugas) kat.push('rot'); if (h[2]) kat.push('libur'); if (h[3]) kat.push('sla');
+        if (!tugas && st.tampil === 'timeline') st.tampil = 'kalender';
+        var html = UI.kepala('Jadwal & Kalender', 'Penugasan, rotasi & infal, kunjungan home visit, libur, dan tenggat SLA dalam satu tampilan', tugas ? UI.segmen([{ v: 'kalender', l: 'Kalender' }, { v: 'timeline', l: 'Timeline' }], st.tampil, 'tampil') : '');
+        if (st.tampil === 'timeline') {
+          html += '<div class="saring masuk"><div class="kalh-nav"><button type="button" class="btn ikon kecil" data-kalh-nav="-1" aria-label="Bulan sebelumnya">' + ic('chevron-left') + '</button><b style="min-width:150px;text-align:center;font:700 14px var(--f-judul)">' + U.bulan(st.bulan) + '</b><button type="button" class="btn ikon kecil" data-kalh-nav="1" aria-label="Bulan berikutnya">' + ic('chevron-right') + '</button><button type="button" class="btn mini" data-kalh-nav="0">Bulan ini</button></div>' + UI.cari(st.q, 'Cari pasien atau perawat…') + '<div class="legenda"><span><i style="background:var(--kat-hc)"></i>Utama</span><span><i style="background:var(--kat-rot)"></i>Infal</span><span><i style="background:var(--kat-libur)"></i>Selesai / dihentikan</span></div></div><div class="kartu masuk-2" data-gantt></div>';
+        } else html += '<div class="kalh-tata masuk"><div data-kal-wadah></div><div class="panel-kanan"><div class="kartu" data-agenda></div></div></div>';
         ctx.el.innerHTML = html;
-        ctx.on('click', '[data-hari]', function (b) { var tg = b.dataset.hari; UI.modal({ judul: U.tglP(tg), ikon: 'calendar-days', sempit: true, isi: '<div class="daftar">' + ev[tg].map(function (x) { return '<div class="item klik" data-rute="' + x.r + '" style="padding:10px 0"><span class="tingkat ' + (x.k === 'akhir' ? 'peringatan' : x.k === 'hv' ? 'normal' : 'info') + '"></span><div class="tumpuk tumbuh"><b>' + e(x.l) + '</b><span>' + e(x.sub) + '</span></div></div>'; }).join('') + '</div>' }).on('click', '[data-rute]', function (t) { A.UI.tutupSemua(); R.ke(t.dataset.rute); }); });
-        ctx.aksi({ prev: function () { st.bulan = U.tambahBulan(st.bulan, -1); R.muatUlang(); }, next: function () { st.bulan = U.tambahBulan(st.bulan, 1); R.muatUlang(); }, ini: function () { st.bulan = U.bulanIni(); R.muatUlang(); } });
+        function gambarGantt() { var w = qs('[data-gantt]', ctx.el); if (w) w.innerHTML = A.Gantt.html({ bulan: st.bulan, baris: barisGantt(tugas, st.bulan, st.q) }); }
+        function gambarKal() {
+          var w = qs('[data-kal-wadah]', ctx.el), a = qs('[data-agenda]', ctx.el); if (!w) return;
+          w.innerHTML = Kal.html({ bulan: st.bulan, ev: ev, kat: kat, mati: st.mati, pilih: st.pilih, maks: 3 });
+          var list = (ev[st.pilih] || []).filter(function (x) { return !st.mati[x.kat]; });
+          a.innerHTML = '<div class="kartu-kepala"><div><h2>' + (st.pilih === U.hariIni() ? 'Jadwal hari ini' : 'Jadwal ' + e(U.tglK(st.pilih))) + '</h2><p>' + e(U.tglP(st.pilih)) + ' · ' + list.length + ' item</p></div></div><div class="kartu-isi rapat">' + Kal.agenda(list, UI.kosong('Tidak ada jadwal', 'Pilih tanggal lain di kalender.')) + '</div>';
+        }
+        if (st.tampil === 'timeline') gambarGantt(); else ctx.nanti(gambarKal);
+        ctx.on('click', '[data-segmen=tampil] button', function (b) { st.tampil = b.dataset.v; R.muatUlang(); });
+        ctx.on('click', '[data-kalh-chip]', function (b) { var k = b.dataset.kalhChip; if (st.mati[k]) delete st.mati[k]; else st.mati[k] = true; gambarKal(); });
+        function pilihHari(s) { st.pilih = s.dataset.kalhHari; gambarKal(); var a = qs('[data-agenda]', ctx.el); if (a && window.innerWidth <= 1100) a.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+        ctx.on('click', '[data-kalh-hari]', function (s, ev2) { if (ev2.target.closest('[data-rute]')) return; pilihHari(s); });
+        ctx.on('keydown', '[data-kalh-hari]', function (s, ev2) { if (ev2.key === 'Enter' || ev2.key === ' ') { ev2.preventDefault(); pilihHari(s); } });
+        ctx.on('click', '[data-kalh-nav]', function (b) { var v = +b.dataset.kalhNav; if (v === 0) { st.bulan = U.bulanIni(); st.pilih = U.hariIni(); } else { st.bulan = U.tambahBulan(st.bulan, v); st.pilih = st.bulan === U.bulanIni() ? U.hariIni() : st.bulan + '-01'; } R.muatUlang(); });
+        ctx.on('input', '[data-f=q]', U.debounce(function (i) { st.q = i.value; gambarGantt(); }, 150));
+        ctx.on('click', '[data-tugas]', function (b) { R.ke('penugasan?id=' + b.dataset.tugas); });
+        ctx.on('keydown', '[data-tugas]', function (b, ev2) { if (ev2.key === 'Enter') R.ke('penugasan?id=' + b.dataset.tugas); });
       });
     }
   });

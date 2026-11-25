@@ -5,34 +5,48 @@
  * ===================================================================== */
 (function () {
   'use strict';
-  var A = window.CCApp, U = A.U, ic = A.ic, UI = A.UI, G = A.G, Q = A.Q, T = A.T, R = A.Router, qs = A.qs, qsa = A.qsa, e = U.e;
+  var A = window.CCApp, U = A.U, ic = A.ic, UI = A.UI, G = A.G, Kal = A.Kal, Q = A.Q, T = A.T, R = A.Router, qs = A.qs, qsa = A.qsa, e = U.e;
   A.F = A.F || {};
   var PERAN_INFO = { ADM: 'Admin / Direksi', KEP: 'Keperawatan', PRW: 'Perawat HC', HV: 'Home Visit', HVK: 'Koordinator HV', CS: 'Customer Service', HRD: 'HRD', OPS: 'Operasional', KEU: 'Keuangan', PC: 'Admin Petty Cash' };
   function sapa() { var j = new Date().getHours(); return j < 11 ? 'Selamat pagi' : j < 15 ? 'Selamat siang' : j < 18 ? 'Selamat sore' : 'Selamat malam'; }
-  function namaDepan(n) { var s = String(n || '').replace(/^(dr\.|Ns\.|Bdn\.|CG\.|Tn\.|Ny\.|Bpk\.|Ibu|H\.|Hj\.)\s*/g, '').replace(/,.*$/, '').trim().split(/\s+/); return s[0] || n; }
+  function namaDepan(n) { var s = String(n || '').replace(/^(dr\.|Ns\.|Bdn\.|CG\.|Tn\.|Ny\.|Bpk\.|Ibu|H\.|Hj\.)\s*/g, '').replace(/,.*$/, '').trim().split(/\s+/); if (s.length > 1 && /^[A-Za-z]\.?$/.test(s[0].replace(/\.$/, '')) ) return s[1]; return s[0] || n; }
   A.F.sapa = sapa; A.F.namaDepan = namaDepan;
   function lencanaKondisi(k) { return UI.lencana(k || '—', k === 'Stabil' ? 'ok' : k === 'Perlu pemantauan' ? 'warn' : k ? 'bahaya' : 'netral'); }
   A.F.lencanaKondisi = lencanaKondisi;
   function ttvMini(l) { return '<span class="ttv-mini mono" title="Tensi · nadi · suhu · SpO₂"><b>' + e(l.tensi || '—') + '</b><i>N ' + e(l.nadi || '—') + '</i><i>' + e(l.suhu || '—') + '°</i><i>' + e(l.spo2 || '—') + '%</i></span>'; }
   A.F.ttvMini = ttvMini;
 
-  /* ===================== HALAMAN MASUK ===================== */
+  /* ===================== HALAMAN MASUK (v2) ===================== */
+  /* Panel kiri: grid arsitektural + "Live Patient Status Card" — DATA FIKTIF STATIS, tidak pernah data pasien asli
+     (halaman masuk terbuka untuk publik). Panel kanan: form ringkas + satu tombol Akses Cepat Mode Demo. */
+  function kartuPratinjau() {
+    var j = new Date(), jam = (j.getHours() < 10 ? '0' : '') + j.getHours() + '.' + (j.getMinutes() < 10 ? '0' : '') + j.getMinutes();
+    return '<div class="lg-kartu" aria-hidden="true"><div class="lg-atas"><span class="lg-live"><i></i>LIVE · PENUGASAN AKTIF</span><span class="lg-waktu" data-lg-jam>' + jam + ' WIB</span></div>' +
+      '<div class="lg-pasien"><span class="ava b" data-w="4">KW</span><div class="tumbuh" style="min-width:0"><b>Ny. Kartini Wulandari</b><span>74 th · Pasca stroke iskemik · Paket VIP</span></div><span class="lg-badge"><i></i>Home Care Aktif</span></div>' +
+      '<div class="lg-perawat"><span class="ava k" data-w="1">DA</span><span class="tumbuh">Bertugas: <b>Ns. Dewi Anggraini, S.Kep</b></span><span>Shift Pagi · hari ke-12/30</span></div>' +
+      '<div class="lg-ttv"><div><small>Tensi</small><b>128/82</b></div><div><small>Nadi</small><b>78</b></div><div><small>Suhu</small><b>36,6°</b></div><div><small>SpO₂</small><b>98%</b></div></div>' +
+      '<div class="lg-lini"><div class="e ok"><time>07.42</time><b>Laporan shift malam</b> terkirim ke keluarga via WhatsApp</div><div class="e ok"><time>09.15</time><b>Obat pagi</b> diberikan sesuai jadwal</div><div class="e jalan"><time>11.30</time><b>Alih baring &amp; ROM pasif</b> sedang berlangsung</div></div>' +
+      '<div class="lg-progres"><span>Laporan A–H</span><div class="meter"><i style="width:75%"></i></div><b style="color:#E2E8F0">6/8</b></div>' +
+      '<div class="lg-catatan">PRATINJAU ILUSTRASI · DATA FIKTIF</div></div>';
+  }
   R.daftar('masuk', {
     bebas: true,
     render: function (wadah) {
       var demo = A.API.mode === 'demo';
-      wadah.innerHTML = '<div class="masuk-hal"><section class="masuk-kiri"><div class="baris celah-12"><span class="sb-logo"><img src="assets/logo.svg" alt="" data-logo></span><div class="sb-brand"><b data-brand>Capten Care</b><span data-tagline>Integrated Management System</span></div></div>' +
-        '<div class="hero"><img src="assets/ilustrasi/login-hero.svg" alt="" data-hero></div><h2>Satu sistem untuk merawat pasien di rumah — dari laporan shift hingga invoice.</h2><p>Laporan harian A–H, penugasan & rotasi perawat, home visit dengan informed consent, sales order, penggajian, dan dokumen ber-QR dalam satu ruang kerja yang aman.</p>' +
-        '<div class="statistik"><div><b>8</b><span>peran dengan izin terpisah</span></div><div><b>A–H</b><span>laporan shift terstandar</span></div><div><b>QR</b><span>dokumen terverifikasi</span></div></div></section>' +
-        '<section class="masuk-kanan"><div class="masuk-kartu masuk"><span class="label-mikro">Masuk ke akun</span><h1 class="mt-4">' + sapa() + ' 👋</h1><p class="redup mt-4">Gunakan username dan PIN/kata sandi dari Admin.</p>' +
-        '<form class="mt-24" data-form-masuk novalidate><div class="form"><div class="fld" data-k="username"><label for="m-user">Username</label><div class="inp-ikon">' + ic('user-round') + '<input class="inp" id="m-user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="mis. koordinator" required></div><span class="galat"></span></div>' +
-        '<div class="fld" data-k="pin"><label for="m-pin">PIN / Kata sandi</label><div class="inp-ikon">' + ic('lock-keyhole') + '<input class="inp" id="m-pin" name="pin" type="password" autocomplete="current-password" placeholder="••••••" required><button type="button" class="btn ikon hantu mini" data-lihat style="position:absolute;right:5px;top:50%;transform:translateY(-50%)" aria-label="Tampilkan PIN">' + ic('eye', 'k') + '</button></div><span class="galat"></span></div></div>' +
+      wadah.innerHTML = '<div class="masuk-hal"><section class="masuk-kiri v2"><div class="baris celah-12"><span class="sb-logo"><img src="assets/logo.svg" alt="" data-logo></span><div class="sb-brand"><b data-brand>Capten Care</b><span data-tagline>Integrated Management System</span></div></div>' +
+        '<div class="lg-panggung">' + kartuPratinjau() + '</div>' +
+        '<div class="lg-kaki"><span>' + ic('clipboard-check') + 'Laporan A–H terstandar</span><span>' + ic('shield-check') + 'Izin berbasis peran</span><span>' + ic('qr-code') + 'Dokumen ber-QR</span></div></section>' +
+        '<section class="masuk-kanan"><div class="masuk-kartu masuk v2"><div class="lg-merek-hp"><span class="sb-logo" style="background:var(--gelap)"><img src="assets/logo.svg" alt="" data-logo></span><div><b style="font:700 15px var(--f-judul)" data-brand>Capten Care</b><div class="kecil redup">Integrated Management System</div></div></div>' +
+        '<span class="label-mikro">Masuk ke akun</span><h1 class="mt-4">Portal Operasional Terpadu</h1><p class="mikro">Masukkan kredensial Anda untuk mengakses sistem rekam medis &amp; penugasan.</p>' +
+        '<form class="mt-24" data-form-masuk novalidate><div class="form"><div class="fld" data-k="username"><label for="m-user">Username</label><div class="inp-ikon">' + ic('user-round') + '<input class="inp" id="m-user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Nama pengguna dari Admin" required></div><span class="galat"></span></div>' +
+        '<div class="fld" data-k="pin"><label for="m-pin">PIN / Kata sandi</label><div class="inp-ikon">' + ic('lock-keyhole') + '<input class="inp" id="m-pin" name="pin" type="password" autocomplete="current-password" placeholder="••••••" required><button type="button" class="btn ikon hantu mini" data-lihat style="position:absolute;right:8px;top:50%;transform:translateY(-50%)" aria-label="Tampilkan PIN">' + ic('eye', 'k') + '</button></div><span class="galat"></span></div></div>' +
         '<div class="panel-bahaya mt-12 sembunyi" data-pesan-galat>' + ic('circle-alert', 'k') + '<span></span></div>' +
-        '<button type="submit" class="btn primer penuh mt-16" style="--h:42px" data-masuk>' + ic('log-in') + '<span>Masuk</span><kbd>↵</kbd></button></form>' +
-        (demo ? '<div class="mt-24"><div class="baris rata"><span class="label-mikro">Akun demo — klik untuk masuk</span><span class="lencana warn"><i></i>Mode demo</span></div><div class="akun-demo mt-8">' + A.PERAN_DEMO.map(function (p) { return '<button type="button" data-demo="' + p.u + '"><b>' + e(p.l) + '</b><span>' + e(p.u) + ' · ' + e(p.p) + '</span></button>'; }).join('') + '</div></div>' : '') +
+        '<button type="submit" class="btn primer penuh mt-16" data-masuk>' + ic('log-in') + '<span>Masuk</span><kbd>↵</kbd></button></form>' +
+        (demo ? '<div class="pemisah-atau">atau</div><button type="button" class="demo-cepat" data-demo-cepat aria-haspopup="listbox" aria-expanded="false"><span class="zap">' + ic('zap') + '</span><span class="tumbuh"><b>Akses Cepat Mode Demo</b><small>Pilih peran — form terisi & langsung masuk</small></span>' + ic('chevron-down', 'panah') + '</button>' : '') +
         '<div class="baris rata mt-24 kecil redup"><a href="#/f/karir">' + ic('briefcase', 'k') + ' Lowongan perawat</a><a href="#/v">' + ic('qr-code', 'k') + ' Verifikasi dokumen</a></div></div></section></div>';
-      Q('publik.tema', {}).then(function (t) { var b = (t && t.branding) || {}; A.Tema.terapkan(b); if (b.logo_url) qsa('[data-logo]', wadah).forEach(function (i) { i.src = b.logo_url; }); if (b.gambar_login_url) { var h = qs('[data-hero]', wadah); if (h) h.src = b.gambar_login_url; } var nb = qs('[data-brand]', wadah); if (nb) nb.textContent = b.nama_brand || 'Capten Care'; }).catch(function () { });
+      Q('publik.tema', {}).then(function (t) { var b = (t && t.branding) || {}; A.Tema.terapkan(b); if (b.logo_url) qsa('[data-logo]', wadah).forEach(function (i) { i.src = b.logo_url; }); qsa('[data-brand]', wadah).forEach(function (nb) { nb.textContent = b.nama_brand || 'Capten Care'; }); }).catch(function () { });
       var form = qs('[data-form-masuk]', wadah), galat = qs('[data-pesan-galat]', wadah), tombol = qs('[data-masuk]', wadah);
+      var jamT = setInterval(function () { var el = qs('[data-lg-jam]', wadah); if (!el || !document.body.contains(el)) return clearInterval(jamT); var j = new Date(); el.textContent = (j.getHours() < 10 ? '0' : '') + j.getHours() + '.' + (j.getMinutes() < 10 ? '0' : '') + j.getMinutes() + ' WIB'; }, 20000);
       UI.pasangForm(form);
       function masuk(u, p, b) {
         galat.classList.add('sembunyi');
@@ -44,12 +58,22 @@
       }
       form.addEventListener('submit', function (ev) { ev.preventDefault(); var v = UI.bacaForm(form); if (!v.username || !v.pin) { UI.tandaiGalat(form, { username: !v.username ? 'Isi username' : '', pin: !v.pin ? 'Isi PIN' : '' }); return; } masuk(v.username, v.pin, tombol); });
       wadah.addEventListener('click', function (ev) {
-        var d = ev.target.closest('[data-demo]'); if (d) { var p = A.PERAN_DEMO.filter(function (x) { return x.u === d.dataset.demo; })[0]; qs('#m-user', wadah).value = p.u; qs('#m-pin', wadah).value = p.p; masuk(p.u, p.p, d); return; }
+        var dc = ev.target.closest('[data-demo-cepat]');
+        if (dc) {
+          dc.setAttribute('aria-expanded', 'true');
+          var pop = UI.pop(dc, A.PERAN_DEMO.map(function (p) { return { l: p.l, i: ikonPeran(p.u), fn: function () { qs('#m-user', wadah).value = p.u; qs('#m-pin', wadah).value = p.p; masuk(p.u, p.p, tombol); } }; }));
+          pop.classList.add('demo-pop'); pop.style.minWidth = dc.offsetWidth + 'px';
+          qsa('.pop-item', pop).forEach(function (b, i) { b.insertAdjacentHTML('beforeend', '<small>' + e(A.PERAN_DEMO[i].u) + '</small>'); });
+          var r = dc.getBoundingClientRect(), y = r.bottom + 6; if (y + pop.offsetHeight > window.innerHeight - 8) y = Math.max(8, r.top - pop.offsetHeight - 6); pop.style.left = r.left + 'px'; pop.style.top = y + 'px';
+          var tutup = setInterval(function () { if (!document.body.contains(pop)) { dc.setAttribute('aria-expanded', 'false'); clearInterval(tutup); } }, 200);
+          return;
+        }
         var l = ev.target.closest('[data-lihat]'); if (l) { var i = qs('#m-pin', wadah); i.type = i.type === 'password' ? 'text' : 'password'; l.innerHTML = ic(i.type === 'password' ? 'eye' : 'eye-off', 'k'); }
       });
       setTimeout(function () { var i = qs('#m-user', wadah); if (i && window.innerWidth > 860) i.focus(); }, 80);
     }
   });
+  function ikonPeran(u) { return { direksi: 'shield-check', koordinator: 'heart-pulse', perawat: 'stethoscope', homevisit: 'syringe', perawathv: 'syringe', cs: 'message-circle-more', hrd: 'briefcase', operasional: 'activity', keuangan: 'landmark', pettycash: 'piggy-bank' }[u] || 'user-round'; }
 
   /* ===================== DASHBOARD ===================== */
   function kartuTindakan(rows, judul) {
@@ -64,89 +88,118 @@
       (rows.length ? rows.map(function (l) { return '<tr class="klik" data-lap="' + e(l.id) + '"><td class="utama-m" data-l="Pasien"><div class="utama-sel">' + e(l.nama_pasien) + '</div><div class="sub-sel potong" style="max-width:220px">' + e(l.diagnosa || '') + '</div></td><td data-l="Perawat"><div class="potong" style="max-width:170px">' + e(l.nama_perawat) + '</div><div class="sub-sel">Shift ' + e(l.shift_label || l.shift) + '</div></td><td data-l="TTV">' + ttvMini(l) + '</td><td data-l="Kondisi" style="white-space:nowrap">' + lencanaKondisi(l.kondisi_pasien) + '<div class="sub-sel">' + e(l.status_ketepatan || '') + '</div></td><td class="kanan" data-l="Diisi" style="white-space:nowrap">' + U.relatif(l.waktu_isi) + '</td></tr>'; }).join('') : '<tr><td colspan="5">' + UI.kosong('Belum ada laporan', 'Laporan hari ini akan tampil di sini.') + '</td></tr>') + '</tbody></table></div></div></div>';
   }
   function grafikKepatuhan(ctx, d, id) {
-    ctx.grafik(function () { var el = qs('#' + id, ctx.el); if (!el) return; var h = d.kepatuhan_harian || []; G.garis(el, { label: h.map(function (x) { return x.tanggal; }), seri: [{ nama: 'Kepatuhan', data: h.map(function (x) { return x.persen; }) }], fmt: function (v) { return U.angka(v, 1) + '%'; }, fmtSumbu: function (v) { return Math.round(v) + '%'; }, maks: 100, acuan: 95, acuanLabel: 'Target 95%', area: true, labelPendek: U.tglK, labelTip: U.tglP, tipEkstra: function (i) { var x = h[i]; return '<div class="tr"><span>Tepat · Telat · Belum</span><b>' + x.tepat + ' · ' + x.telat + ' · ' + x.belum + '</b></div>'; }, aria: 'Kepatuhan laporan 30 hari' }); });
+    ctx.grafik(function () { var el = qs('#' + id, ctx.el); if (!el) return; var h = d.kepatuhan_harian || []; G.garis(el, { label: h.map(function (x) { return x.tanggal; }), seri: [{ nama: 'Kepatuhan', warna: 'var(--merek)', data: h.map(function (x) { return x.persen; }) }], fmt: function (v) { return U.angka(v, 1) + '%'; }, fmtSumbu: function (v) { return Math.round(v) + '%'; }, maks: 100, acuan: 95, acuanLabel: 'Target 95%', area: true, labelPendek: U.tglK, labelTip: U.tglP, tipEkstra: function (i) { var x = h[i]; return '<div class="tr"><span>Tepat · Telat · Belum</span><b>' + x.tepat + ' · ' + x.telat + ' · ' + x.belum + '</b></div>'; }, aria: 'Kepatuhan laporan 30 hari' }); });
   }
   function grafikKasus(ctx, d, id) {
     ctx.grafik(function () { var el = qs('#' + id, ctx.el); if (!el) return; var g = d.grafik_kasus || []; G.batang(el, { label: g.map(function (x) { return x.label; }), seri: [{ nama: 'Selesai', data: g.map(function (x) { return x.selesai; }), warna: 'var(--s3)' }, { nama: 'Proses', data: g.map(function (x) { return x.proses; }), warna: 'var(--s1)' }, { nama: 'Masuk', data: g.map(function (x) { return x.masuk; }), warna: 'var(--s4)' }, { nama: 'Overdue', data: g.map(function (x) { return x.overdue; }), warna: 'var(--s2)' }], tumpuk: true, labelPendek: U.tglK, labelTip: function (l) { return 'Periode mulai ' + U.tgl(l); }, tinggi: 220, aria: 'Kasus per periode' }); });
   }
   function bukaLaporan(ctx) { ctx.on('click', '[data-lap]', function (t) { if (A.F.detailLaporan) A.F.detailLaporan(t.dataset.lap); }); }
 
+  /* ===================== DASHBOARD (v2) =====================
+   * Peran operasional (Admin, Keperawatan, Operasional, CS, Home Visit): kalender jadi hero,
+   * 3 pill statistik ramping, panel kanan "Jadwal hari ini" + "Perlu tindakan mendesak".
+   * Peran lain (Perawat, HRD, Keuangan, Petty Cash): dashboard khusus versi ramping (pill, tanpa tumpukan kartu). */
+  var PERAN_KALENDER = /^(ADM|KEP|OPS|CS|HV|HVK)$/;
   R.daftar('dashboard', {
     judul: 'Dashboard',
     render: function (ctx) {
-      var me = ctx.me, p = me.peran;
-      return Q('dash.data', { rentang: 30 }).then(function (d) {
+      var me = ctx.me, p = me.peran, st = ctx.st, kal = PERAN_KALENDER.test(p);
+      st.bulan = st.bulan || U.bulanIni(); st.mati = st.mati || {}; st.pilih = st.pilih || U.hariIni();
+      var sumber = [Q('dash.data', { rentang: 30 })];
+      if (kal) sumber.push(/ADM|KEP|OPS|CS/.test(p) ? Q('penugasan.list', {}) : Promise.resolve(null), /ADM|OPS|HV/.test(p) ? Q('hv.list', { bulan: st.bulan }) : Promise.resolve(null), Q('kasus.list', {}));
+      return Promise.all(sumber.map(function (x, i) { return i ? x.catch(function () { return null; }) : x; })).then(function (h) {
         if (ctx.basi()) return;
-        var tgl = U.tglP(d.tanggal), h = '';
+        var d = h[0], tgl = U.tglP(d.tanggal), isi = '';
         var kepala = UI.kepala(sapa() + ', ' + namaDepan(me.nama), tgl + ' · ' + e(me.peran_label), '<button type="button" class="btn kecil" data-a="segar">' + ic('refresh-cw') + '<span>Segarkan</span></button>');
-        if (p === 'PRW') h = dashPerawat(ctx, d);
-        else if (p === 'HV' || p === 'HVK') h = dashHV(ctx, d);
-        else if (p === 'HRD') h = dashHRD(ctx, d);
-        else if (p === 'PC') h = dashPC(ctx, d);
-        else h = dashManajemen(ctx, d);
-        ctx.el.innerHTML = kepala + h;
+        if (kal) isi = dashKalender(ctx, d, h);
+        else if (p === 'PRW') isi = dashPerawat(ctx, d);
+        else if (p === 'HRD') isi = dashHRD(ctx, d);
+        else if (p === 'PC') isi = dashPC(ctx, d);
+        else isi = dashKeuangan(ctx, d);
+        ctx.el.innerHTML = kepala + isi;
         bukaLaporan(ctx);
         ctx.aksi({
-          segar: function (b) { UI.kerja(b, function () { return Q('dash.data', { rentang: 30 }, { paksa: true }); }).then(function () { R.muatUlang(); UI.toast('Dashboard diperbarui.', 'ok'); }); },
+          segar: function (b) { UI.kerja(b, function () { return Q('dash.data', { rentang: 30 }, { paksa: true }); }).then(function () { R.muatUlang(); A.Shell.muatGauge(); UI.toast('Dashboard diperbarui.', 'ok'); }); },
           ingatkan: function (b) { UI.kerja(b, function () { return T('laporan.ingatkan', { perawat_id: b.dataset.perawat, pasien_id: b.dataset.pasien, shift: b.dataset.shift, tanggal: d.tanggal }); }).then(function () { UI.toast(A.API.pesan || 'Pengingat dikirim ke perawat.', 'ok'); b.innerHTML = ic('check', 'k') + 'Terkirim'; b.disabled = true; }).catch(function () { }); }
         });
       });
     }
   });
-  function dashManajemen(ctx, d) {
-    var p = ctx.me.peran, k = d.kpi || {}, keu = d.keuangan, h = '<div class="grid g4 kpi-baris">';
-    if (p === 'CS') {
-      var c = d.cs || {};
-      h += UI.kpi({ label: 'Lead masuk', nilai: U.angka(c.lead && c.lead.masuk), sub: 'belum di-follow up', ikon: 'user-plus', utama: true, rute: 'pipeline' }) + UI.kpi({ label: 'Sedang follow-up', nilai: U.angka(c.lead && c.lead.followup), sub: 'Follow-up ≤ 2 hari: ' + U.persen(k.lead_followup_persen, 0), ikon: 'message-circle-more', meter: k.lead_followup_persen, rute: 'pipeline' }) + UI.kpi({ label: 'Deal bulan ini', nilai: U.angka(c.lead && c.lead.deal), sub: c.so_saya + ' SO saya · ' + U.rpS(c.nilai_saya), ikon: 'handshake', rute: 'sales' }) + UI.kpi({ label: 'Draf perpanjangan', nilai: U.angka(c.draf_perpanjangan), sub: 'menunggu persetujuan klien', ikon: 'calendar-clock', rute: 'sales?tab=perpanjangan' });
+  function kartuMendesak(rows) {
+    rows = (rows || []).slice().sort(function (a, b) { var o = { kritis: 0, tinggi: 1, peringatan: 1 }; return (o[a.tingkat] == null ? 2 : o[a.tingkat]) - (o[b.tingkat] == null ? 2 : o[b.tingkat]); });
+    var kritis = rows.filter(function (r) { return r.tingkat === 'kritis'; }).length;
+    return '<div class="kartu"><div class="kartu-kepala"><div><h2>Perlu tindakan mendesak</h2><p>Tiket SLA overdue & item kritis</p></div><span class="lencana ' + (kritis ? 'bahaya denyut' : 'netral') + '"><i></i>' + rows.length + '</span></div><div class="kartu-isi rapat"><div class="daftar">' +
+      (rows.length ? rows.slice(0, 5).map(function (r) { return '<div class="item klik" data-rute="' + e(r.rute) + '?id=' + encodeURIComponent(r.kode || '') + '"><span class="tingkat ' + e(r.tingkat) + '"></span><div class="tumpuk tumbuh"><b class="potong">' + e(r.judul) + '</b><span class="potong">' + e(r.kode) + ' · ' + e(r.sub) + '</span></div>' + ic('chevron-right', 'k') + '</div>'; }).join('') + (rows.length > 5 ? '<a class="item klik" href="#/' + (rows[5].rute || 'kasus') + '" style="justify-content:center"><span class="kecil tebal info-t baris" style="gap:4px;white-space:nowrap">+' + (rows.length - 5) + ' item lainnya ' + ic('arrow-right', 'k') + '</span></a>' : '') : UI.kosong('Semua beres', 'Tidak ada tiket overdue maupun item kritis.')) + '</div></div></div>';
+  }
+  function pilStatistik(ctx, d) {
+    var p = ctx.me.peran, k = d.kpi || {};
+    if (p === 'CS') { var c = d.cs || {}, l = c.lead || {}; return UI.pil({ ik: 'user-plus', l: 'Lead masuk', n: U.angka(l.masuk), s: 'belum di-follow up', rute: 'pipeline', k: 'utama' }) + UI.pil({ ik: 'message-circle-more', l: 'Follow-up', n: U.angka(l.followup), s: '≤ 2 hari: ' + U.persen(k.lead_followup_persen, 0), rute: 'pipeline' }) + UI.pil({ ik: 'handshake', l: 'Deal bulan ini', n: U.angka(l.deal), s: (c.so_saya || 0) + ' SO saya', rute: 'sales' }); }
+    if (p === 'HV' || p === 'HVK') { var hv = d.hv || {}; return UI.pil({ ik: 'stethoscope', l: 'Kunjungan hari ini', n: U.angka((hv.hari_ini || []).length), rute: 'homevisit', k: 'utama' }) + UI.pil({ ik: 'calendar-days', l: 'Terjadwal', n: U.angka(hv.terjadwal), s: 'termasuk hari ini', rute: 'homevisit' }) + UI.pil({ ik: 'circle-check', l: 'Selesai bulan ini', n: U.angka(hv.bulan_ini), rute: 'homevisit' }); }
+    return UI.pil({ ik: 'contact-round', l: 'Pasien aktif', n: U.angka(k.pasien_aktif), s: U.angka(k.pasien_hc) + ' HC · ' + U.angka(k.pasien_hv) + ' HV', rute: 'pasien', k: 'utama' }) +
+      UI.pil({ ik: 'users-round', l: 'Perawat bertugas', n: U.angka(k.perawat_aktif), s: (k.perawat_utama || 0) + ' utama · ' + (k.perawat_infal || 0) + ' infal · ' + (k.perawat_siaga || 0) + ' siaga', rute: 'penugasan' }) +
+      UI.pil({ ik: 'circle-alert', l: 'Kasus aktif', n: U.angka(k.kasus_aktif), s: '<span class="' + (k.kasus_overdue ? 'bahaya-t' : '') + '">' + (k.kasus_overdue || 0) + ' overdue</span> · SLA ' + U.persen(k.sla_persen, 0), rute: 'kasus', k: k.kasus_overdue ? 'bahaya' : '' });
+  }
+  function dashKalender(ctx, d, h) {
+    var p = ctx.me.peran, st = ctx.st, tugas = h[1] ? h[1].rows || [] : null, hv = h[2], kasus = h[3] ? h[3].rows || [] : [];
+    var kat = [], ev = Kal.kumpulkan({ tugas: tugas || [], hv: hv || [], kasus: kasus }, null);
+    if (tugas) kat.push('hc'); if (hv) kat.push('hv'); if (tugas) kat.push('rot'); kat.push('sla');
+    function gambarKal() {
+      var w = qs('[data-kal-wadah]', ctx.el), a = qs('[data-agenda]', ctx.el); if (!w) return;
+      w.innerHTML = Kal.html({ bulan: st.bulan, ev: ev, kat: kat, mati: st.mati, pilih: st.pilih, maks: 3, kaki: '<span>' + ic('info', 'k') + ' Klik tanggal untuk melihat jadwalnya · klik item untuk membuka detail</span><a href="#/jadwal" class="kecil tebal">Buka Jadwal &amp; Kalender →</a>' });
+      var list = (ev[st.pilih] || []).filter(function (x) { return !st.mati[x.kat]; }), hariIni = st.pilih === U.hariIni();
+      a.innerHTML = '<div class="kartu-kepala"><div><h2>' + (hariIni ? 'Jadwal hari ini' : 'Jadwal ' + e(U.tglK(st.pilih))) + '</h2><p>' + e(U.tglP(st.pilih)) + ' · ' + list.length + ' item</p></div>' + (hariIni ? '' : '<button type="button" class="btn mini hantu" data-kalh-nav="0">Hari ini</button>') + '</div><div class="kartu-isi rapat">' + Kal.agenda(list, UI.kosong(hariIni ? 'Tidak ada jadwal hari ini' : 'Tidak ada jadwal', 'Tidak ada kunjungan, rotasi, maupun tenggat SLA pada tanggal ini.')) + '</div>';
+    }
+    var html = '<div class="pil-baris masuk">' + pilStatistik(ctx, d) + '</div>' +
+      '<div class="kalh-tata masuk-2"><div data-kal-wadah></div><div class="panel-kanan"><div class="kartu" data-agenda></div>' + kartuMendesak(d.perlu_tindakan) + '</div></div>';
+    if (p === 'HV' || p === 'HVK') {
+      var hvd = d.hv || {};
+      html += '<div class="grid g2 mt-16 masuk-3"><div class="kartu"><div class="kartu-kepala"><div><h2>Tindakan bulan ini</h2><p>Per jenis tindakan home visit</p></div></div><div class="kartu-isi">' + G.hbar(Object.keys(hvd.per_tindakan || {}).map(function (k) { return { n: k, v: hvd.per_tindakan[k] }; }).sort(function (a, b) { return b.v - a.v; }), { fmt: function (v) { return v + '×'; }, warna: 'var(--kat-hv)' }) + '</div></div>' + kartuTarget(d.target || []) + '</div>';
     } else {
-      h += UI.kpi({ label: 'Pasien aktif', nilai: U.angka(k.pasien_aktif), sub: U.angka(k.pasien_hc) + ' homecare · ' + U.angka(k.pasien_hv) + ' home visit', ikon: 'contact-round', utama: true, rute: 'pasien' }) +
-        UI.kpi({ label: 'Perawat bertugas', nilai: U.angka(k.perawat_aktif), sub: k.perawat_utama + ' utama · ' + k.perawat_infal + ' infal · ' + k.perawat_siaga + ' siaga', ikon: 'users-round', rute: 'penugasan' }) +
-        UI.kpi({ label: 'Kepatuhan laporan hari ini', nilai: U.angka(k.kepatuhan_hari, 1) + '<small>%</small>', sub: k.laporan_masuk_hari + '/' + k.laporan_wajib_hari + ' masuk · 7 hari ' + U.persen(k.kepatuhan_7h), ikon: 'clipboard-check', meter: k.kepatuhan_hari, meterKelas: k.kepatuhan_hari >= 95 ? 'ok' : k.kepatuhan_hari >= 80 ? '' : 'warn', rute: 'laporan' }) +
-        UI.kpi({ label: 'Kasus aktif', nilai: U.angka(k.kasus_aktif), sub: '<span class="' + (k.kasus_overdue ? 'bahaya-t tebal' : '') + '">' + k.kasus_overdue + ' overdue</span> · SLA ' + U.persen(k.sla_persen, 0), ikon: 'circle-alert', rute: 'kasus' });
+      html += '<div class="grid g-2-1 mt-16 masuk-3">' + G.kartu('g-kepatuhan', 'Kepatuhan laporan harian', '30 hari terakhir · garis putus-putus = target 95%', { tinggi: 230 }) + kartuTarget(d.target || []) + '</div>';
+      if (p === 'KEP') html += '<div class="grid g2 mt-16 masuk-4"><div class="kartu"><div class="kartu-kepala"><div><h2>Laporan belum masuk</h2><p>Lewat batas waktu shift hari ini</p></div><span class="lencana ' + ((d.belum_masuk || []).length ? 'bahaya' : 'ok') + '"><i></i>' + (d.belum_masuk || []).length + '</span></div><div class="kartu-isi rapat"><div class="daftar">' + ((d.belum_masuk || []).length ? d.belum_masuk.map(function (b) { return '<div class="item">' + UI.ava(b.nama_perawat, 'k') + '<div class="tumpuk tumbuh"><b class="potong">' + e(b.nama_perawat) + '</b><span class="potong">' + e(b.nama_pasien) + ' · ' + e(b.shift) + ' · ' + U.angka(b.telat_jam, 1) + ' jam</span></div><button type="button" class="btn mini" data-a="ingatkan" data-perawat="' + e(b.perawat_id) + '" data-pasien="' + e(b.pasien_id) + '" data-shift="' + e(b.shift) + '">' + ic('bell-ring', 'k') + 'Ingatkan</button></div>'; }).join('') : UI.kosong('Semua laporan masuk', '')) + '</div></div></div>' +
+        '<div class="kartu"><div class="kartu-kepala"><div><h2>Pantau kondisi pasien</h2><p>Laporan 3 hari terakhir dengan kondisi tidak stabil</p></div></div><div class="kartu-isi rapat"><div class="daftar">' + ((d.pantau || []).length ? d.pantau.map(function (l) { return '<div class="item klik" data-lap="' + e(l.id) + '"><span class="tingkat ' + (l.kondisi_pasien === 'Perlu pemantauan' ? 'peringatan' : 'kritis') + '"></span><div class="tumpuk tumbuh"><b class="potong">' + e(l.nama_pasien) + '</b><span class="potong">' + U.tglK(l.tanggal) + ' · ' + e(l.shift_label) + ' · ' + e(l.nama_perawat) + '</span></div>' + lencanaKondisi(l.kondisi_pasien) + '</div>'; }).join('') : UI.kosong('Semua pasien stabil', '')) + '</div></div></div></div>';
+      if (p !== 'CS') html += '<div class="mt-16 masuk-4">' + tabelLaporan(d.laporan_terbaru || []) + '</div>';
+      grafikKepatuhan(ctx, d, 'g-kepatuhan');
     }
-    h += '</div>';
-    if (keu && p !== 'CS') h += '<div class="grid g4 kpi-baris mt-16 masuk-2">' + UI.kpi({ label: 'Omzet SO bulan ini', nilai: U.rpS(keu.omzet), sub: keu.so_jumlah + ' sales order' + (keu.margin_persen != null ? ' · margin ' + U.persen(keu.margin_persen) : ''), ikon: 'trending-up', rute: p === 'KEU' || p === 'ADM' || p === 'OPS' ? 'analitik' : 'sales' }) + UI.kpi({ label: 'Pembayaran diterima', nilai: U.rpS(keu.terbayar_bulan), sub: 'bulan berjalan', ikon: 'wallet', rute: 'sales?tab=invoice' }) + UI.kpi({ label: 'Piutang', nilai: U.rpS(keu.piutang), sub: keu.invoice_tertunda + ' invoice · <span class="' + (keu.invoice_terlambat ? 'bahaya-t tebal' : '') + '">' + keu.invoice_terlambat + ' lewat jatuh tempo</span>', ikon: 'receipt-text', rute: 'sales?tab=invoice' }) + UI.kpi({ label: 'Saldo petty cash', nilai: U.rpS(keu.saldo_pc), sub: 'kas kecil kantor', ikon: 'piggy-bank', rute: 'pettycash' }) + '</div>';
-    if (p === 'KEP') {
-      h += '<div class="grid g2 mt-16 masuk-3"><div class="kartu"><div class="kartu-kepala"><div><h2>Laporan belum masuk</h2><p>Lewat batas waktu shift hari ini</p></div><span class="lencana ' + (d.belum_masuk.length ? 'bahaya' : 'ok') + '"><i></i>' + d.belum_masuk.length + '</span></div><div class="kartu-isi rapat"><div class="daftar">' + (d.belum_masuk.length ? d.belum_masuk.map(function (b) { return '<div class="item">' + UI.ava(b.nama_perawat, 'k') + '<div class="tumpuk tumbuh"><b class="potong">' + e(b.nama_perawat) + '</b><span class="potong">' + e(b.nama_pasien) + ' · ' + e(b.shift) + ' · telat ' + U.angka(b.telat_jam, 1) + ' jam</span></div>' + (b.no_wa ? '<a class="btn mini ikon hantu" target="_blank" rel="noopener" href="' + U.wa(b.no_wa, 'Halo ' + namaDepan(b.nama_perawat) + ', laporan harian ' + b.nama_pasien + ' shift ' + b.shift + ' belum masuk. Mohon segera diisi ya. Terima kasih.') + '" title="Chat WhatsApp">' + ic('message-circle', 'k') + '</a>' : '') + '<button type="button" class="btn mini" data-a="ingatkan" data-perawat="' + e(b.perawat_id) + '" data-pasien="' + e(b.pasien_id) + '" data-shift="' + e(b.shift) + '">' + ic('bell-ring', 'k') + 'Ingatkan</button></div>'; }).join('') : UI.kosong('Semua laporan sudah masuk', 'Tidak ada laporan yang terlambat.')) + '</div></div></div>' +
-        '<div class="kartu"><div class="kartu-kepala"><div><h2>Pantau kondisi pasien</h2><p>Laporan 3 hari terakhir dengan kondisi tidak stabil</p></div></div><div class="kartu-isi rapat"><div class="daftar">' + (d.pantau.length ? d.pantau.map(function (l) { return '<div class="item klik" data-lap="' + e(l.id) + '">' + '<span class="tingkat ' + (l.kondisi_pasien === 'Perlu pemantauan' ? 'peringatan' : 'kritis') + '"></span><div class="tumpuk tumbuh"><b class="potong">' + e(l.nama_pasien) + '</b><span class="potong">' + e(l.keterangan_kondisi || l.kondisi_pasien) + '</span></div><div class="tumpuk" style="align-items:flex-end">' + lencanaKondisi(l.kondisi_pasien) + '<span class="kecil redup">' + e(l.shift_label) + ' · ' + U.relatif(l.waktu_isi) + '</span></div></div>'; }).join('') : UI.kosong('Semua pasien stabil', '')) + '</div></div></div></div>';
-    }
-    h += '<div class="grid g-2-1 mt-16 masuk-3">' + G.kartu('g-kepatuhan', 'Kepatuhan laporan harian', '30 hari terakhir · garis putus-putus = target 95%', { tinggi: 240 }) + kartuTindakan(d.perlu_tindakan || []) + '</div>';
-    h += '<div class="grid g-2-1 mt-16 masuk-4">' + G.kartu('g-kasus', 'Kasus & komplain', 'Masuk, proses, selesai, dan overdue per periode', { tinggi: 220, legenda: G.legenda([{ nama: 'Selesai', warna: 'var(--s3)' }, { nama: 'Proses', warna: 'var(--s1)' }, { nama: 'Masuk', warna: 'var(--s4)' }, { nama: 'Overdue', warna: 'var(--s2)' }]) }) +
-      (p !== 'CS' ? '<div class="kartu"><div class="kartu-kepala"><div><h2>Pasien per paket</h2><p>Pasien homecare aktif</p></div></div><div class="kartu-isi">' + G.hbar(Object.keys(k.per_paket || {}).map(function (x) { return { n: x, v: k.per_paket[x] }; }).sort(function (a, b) { return b.v - a.v; }), { fmt: function (v) { return v + ' pasien'; } }) + '<hr class="pemisah"><div class="baris rata kecil"><span class="redup">Pasien terisi perawat</span><b>' + U.persen(k.terisi_persen, 0) + '</b></div><div class="meter mt-4 ' + (k.terisi_persen >= 100 ? 'ok' : 'warn') + '"><i style="width:' + k.terisi_persen + '%"></i></div><div class="baris rata kecil mt-12"><span class="redup">Follow-up lead ≤ 2 hari</span><b>' + U.persen(k.lead_followup_persen, 0) + '</b></div><div class="meter mt-4"><i style="width:' + k.lead_followup_persen + '%"></i></div></div></div>' : kartuTarget(d.target || [])) + '</div>';
-    h += '<div class="grid ' + (p === 'CS' ? '' : 'g-2-1') + ' mt-16">' + tabelLaporan(d.laporan_terbaru || []) + (p !== 'CS' ? kartuTarget(d.target || []) : '') + '</div>';
-    grafikKepatuhan(ctx, d, 'g-kepatuhan'); grafikKasus(ctx, d, 'g-kasus');
-    return h;
+    ctx.nanti(gambarKal);
+    ctx.on('click', '[data-kalh-chip]', function (b) { var k = b.dataset.kalhChip; if (st.mati[k]) delete st.mati[k]; else st.mati[k] = true; gambarKal(); });
+    function pilihHari(s) { st.pilih = s.dataset.kalhHari; qsa('.kalh-sel.pilih', ctx.el).forEach(function (x) { x.classList.remove('pilih'); }); s.classList.add('pilih'); gambarKal(); var a = qs('[data-agenda]', ctx.el); if (a && window.innerWidth <= 1100) a.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    ctx.on('click', '[data-kalh-hari]', function (s, ev) { if (ev.target.closest('[data-rute]')) return; pilihHari(s); });
+    ctx.on('keydown', '[data-kalh-hari]', function (s, ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pilihHari(s); } });
+    ctx.on('keydown', '.agenda-item', function (s, ev) { if (ev.key === 'Enter') R.ke(s.dataset.rute); });
+    ctx.on('click', '[data-kalh-nav]', function (b) { var v = +b.dataset.kalhNav; if (v === 0) { st.bulan = U.bulanIni(); st.pilih = U.hariIni(); } else { st.bulan = U.tambahBulan(st.bulan, v); st.pilih = st.bulan === U.bulanIni() ? U.hariIni() : st.bulan + '-01'; } if (hv) R.muatUlang(); else gambarKal(); });
+    return html;
   }
   function dashPerawat(ctx, d) {
-    var kp = d.kepatuhan || {}, tugas = d.tugas_hari || [], h = '';
+    var kp = d.kepatuhan || {}, tugas = d.tugas_hari || [], sudah = tugas.filter(function (t) { return t.laporan_id; }).length, h = '';
+    h += '<div class="pil-baris masuk">' + UI.pil({ ik: 'clipboard-pen', l: 'Laporan hari ini', n: sudah + '/' + tugas.length, s: tugas.length - sudah ? (tugas.length - sudah) + ' belum dikirim' : 'semua terkirim', rute: 'laporan', k: 'utama' }) + UI.pil({ ik: 'badge-check', l: 'Tepat waktu bulan ini', n: U.angka(kp.persen == null ? 100 : kp.persen, 1) + '%', s: (kp.tepat || 0) + ' dari ' + (kp.wajib || 0), rute: 'riwayat' }) + UI.pil({ ik: 'clipboard-list', l: 'Identifikasi diminta', n: U.angka(d.idf_diminta || 0), rute: 'identifikasi', k: d.idf_diminta ? 'bahaya' : '' }) + '</div>';
     if (d.idf_diminta) h += '<div class="panel-peringatan mb-12 masuk">' + ic('clipboard-pen') + '<div class="tumbuh"><b>Form Identifikasi Pasien diminta</b><div>Koordinator meminta Anda mengisi ' + d.idf_diminta + ' form identifikasi pasien (handover).</div></div><a class="btn mini" href="#/identifikasi">Isi sekarang</a></div>';
-    h += '<div class="grid g-2-1"><div class="tumpuk celah-12"><div class="label-mikro">Tugas laporan hari ini</div>' + (tugas.length ? tugas.map(function (t, i) {
-      var sudah = !!t.laporan_id, telat = !sudah && new Date() > U.parse(t.batas);
-      return '<div class="kartu pad masuk-' + Math.min(4, i + 1) + '"><div class="baris atas celah-12">' + UI.ava(t.nama_pasien, 'b') + '<div class="tumpuk tumbuh"><b style="font:700 15px var(--f-judul)">' + e(t.nama_pasien) + '</b><span class="redup kecil">' + e(t.diagnosa) + '</span><div class="baris bungkus mt-4"><span class="tag merek">' + ic('clock', 'k') + ' Shift ' + e(t.shift_label) + '</span><span class="tag">' + e(t.peran) + '</span>' + UI.lencana(sudah ? (t.status || 'Terkirim') : telat ? 'Terlambat' : 'Belum Diisi', sudah ? 'ok' : telat ? 'bahaya' : 'warn') + '</div></div></div>' +
-        '<div class="baris rata mt-12 bungkus"><span class="kecil redup">' + ic('alarm-clock', 'k') + ' Batas kirim ' + U.waktu(t.batas) + (sudah ? '' : ' · ' + U.relatif(t.batas)) + '</span>' + (sudah ? '<button type="button" class="btn kecil" data-lap="' + e(t.laporan_id) + '">' + ic('eye') + 'Lihat laporan</button>' : '<a class="btn primer" href="#/laporan?pasien=' + e(t.pasien_id) + '&shift=' + e(t.shift) + '">' + ic('clipboard-pen') + 'Isi laporan sekarang</a>') + '</div></div>';
+    h += '<div class="grid g-2-1 masuk-2"><div class="tumpuk celah-12"><div class="label-mikro">Tugas laporan hari ini</div>' + (tugas.length ? tugas.map(function (t, i) {
+      var ada = !!t.laporan_id, telat = !ada && new Date() > U.parse(t.batas);
+      return '<div class="kartu pad masuk-' + Math.min(4, i + 1) + '"><div class="baris atas celah-12">' + UI.ava(t.nama_pasien, 'b') + '<div class="tumpuk tumbuh"><b style="font:700 15px var(--f-judul)">' + e(t.nama_pasien) + '</b><span class="redup kecil">' + e(t.diagnosa) + '</span><div class="baris bungkus mt-4"><span class="tag merek">' + ic('clock', 'k') + ' Shift ' + e(t.shift_label) + '</span><span class="tag">' + e(t.peran) + '</span>' + UI.lencana(ada ? (t.status || 'Terkirim') : telat ? 'Terlambat' : 'Belum Diisi', ada ? 'ok' : telat ? 'bahaya' : 'warn') + '</div></div></div>' +
+        '<div class="baris rata mt-12 bungkus"><span class="kecil redup">' + ic('alarm-clock', 'k') + ' Batas kirim ' + U.waktu(t.batas) + (ada ? '' : ' · ' + U.relatif(t.batas)) + '</span>' + (ada ? '<button type="button" class="btn kecil" data-lap="' + e(t.laporan_id) + '">' + ic('eye') + 'Lihat laporan</button>' : '<a class="btn primer" href="#/laporan?pasien=' + e(t.pasien_id) + '&shift=' + e(t.shift) + '">' + ic('clipboard-pen') + 'Isi laporan sekarang</a>') + '</div></div>';
     }).join('') : '<div class="kartu pad">' + UI.kosong('Tidak ada tugas laporan hari ini', 'Anda tidak memiliki penugasan aktif pada tanggal ini.') + '</div>') + '</div>' +
-      '<div class="tumpuk celah-12"><div class="label-mikro">Kepatuhan saya (30 hari)</div>' + UI.kpi({ label: 'Laporan tepat waktu', nilai: U.angka(kp.persen, 1) + '<small>%</small>', sub: kp.tepat + ' tepat · ' + kp.telat + ' telat · ' + kp.belum + ' belum dari ' + kp.wajib + ' wajib', utama: true, meter: kp.persen, ikon: 'badge-check' }) +
-      '<div class="kartu"><div class="kartu-kepala"><div><h2>Riwayat terakhir</h2></div><a class="btn mini hantu" href="#/riwayat">Semua ' + ic('arrow-right', 'k') + '</a></div><div class="kartu-isi rapat"><div class="daftar">' + (d.riwayat || []).map(function (l) { return '<div class="item klik" data-lap="' + e(l.id) + '"><div class="tumpuk tumbuh"><b>' + U.tglK(l.tanggal) + ' · ' + e(l.shift_label) + '</b><span class="potong">' + e(l.nama_pasien) + ' · ' + ttvMini(l) + '</span></div>' + UI.lencana(l.status_ketepatan) + '</div>'; }).join('') + '</div></div></div></div></div>';
-    return h;
-  }
-  function dashHV(ctx, d) {
-    var hv = d.hv || {}, koor = ctx.me.peran === 'HVK', h = '<div class="grid g4 kpi-baris">' + UI.kpi({ label: 'Kunjungan hari ini', nilai: U.angka((hv.hari_ini || []).length), sub: 'terjadwal & selesai', ikon: 'stethoscope', utama: true, rute: 'homevisit' }) + UI.kpi({ label: 'Terjadwal mendatang', nilai: U.angka(hv.terjadwal), sub: 'termasuk hari ini', ikon: 'calendar-days', rute: 'jadwal' }) + UI.kpi({ label: 'Selesai bulan ini', nilai: U.angka(hv.bulan_ini), sub: 'tindakan home visit', ikon: 'circle-check' }) + UI.kpi({ label: 'Consent tertunda', nilai: U.angka(hv.consent_tunda), sub: 'wajib disetujui sebelum tindakan', ikon: 'file-signature', rute: 'homevisit' }) + '</div>';
-    h += '<div class="grid g-2-1 mt-16 masuk-2"><div class="kartu"><div class="kartu-kepala"><div><h2>Jadwal kunjungan hari ini</h2><p>Consent → tindakan → dokumentasi foto → selesai</p></div>' + (koor ? '<a class="btn mini primer" href="#/homevisit?baru=1">' + ic('plus', 'k') + 'Jadwalkan</a>' : '') + '</div><div class="kartu-isi rapat"><div class="daftar">' + ((hv.hari_ini || []).length ? hv.hari_ini.map(function (x) { return '<div class="item klik" data-rute="homevisit?id=' + e(x.id) + '"><div class="tumpuk" style="min-width:52px"><b style="font:700 15px var(--f-judul)">' + e(String(x.jadwal_jam).replace(':', '.')) + '</b><span>WIB</span></div><div class="tumpuk tumbuh"><b class="potong">' + e(x.nama_pasien) + ' · ' + e(x.jenis_tindakan) + '</b><span class="potong">' + e(x.alamat || '') + ' · ' + e(x.nama_perawat || '') + '</span></div><div class="tumpuk" style="align-items:flex-end">' + UI.lencana(x.status) + '<span class="kecil">' + UI.lencana('Consent: ' + (x.status_consent || 'Belum'), x.status_consent === 'Disetujui' ? 'ok' : 'warn') + '</span></div></div>'; }).join('') : UI.kosong('Tidak ada kunjungan hari ini', 'Lihat jadwal untuk kunjungan mendatang.')) + '</div></div></div>' +
-      '<div class="kartu"><div class="kartu-kepala"><div><h2>Tindakan bulan ini</h2><p>Per jenis tindakan</p></div></div><div class="kartu-isi">' + G.hbar(Object.keys(hv.per_tindakan || {}).map(function (k) { return { n: k, v: hv.per_tindakan[k] }; }).sort(function (a, b) { return b.v - a.v; }), { fmt: function (v) { return v + '×'; }, warna: 'var(--s3)' }) + '</div></div></div>';
-    if ((d.perlu_tindakan || []).length) h += '<div class="mt-16">' + kartuTindakan(d.perlu_tindakan) + '</div>';
+      '<div class="tumpuk celah-12"><div class="label-mikro">Riwayat terakhir</div><div class="kartu"><div class="kartu-isi rapat"><div class="daftar">' + ((d.riwayat || []).length ? d.riwayat.map(function (l) { return '<div class="item klik" data-lap="' + e(l.id) + '"><div class="tumpuk tumbuh"><b>' + U.tglK(l.tanggal) + ' · ' + e(l.shift_label) + '</b><span class="potong">' + e(l.nama_pasien) + ' · ' + ttvMini(l) + '</span></div>' + UI.lencana(l.status_ketepatan) + '</div>'; }).join('') : UI.kosong('Belum ada laporan', '')) + '</div></div><div class="kartu-kaki"><span>Laporan 7 hari terakhir</span><a href="#/riwayat" class="tebal">Semua riwayat →</a></div></div></div></div>';
     return h;
   }
   function dashHRD(ctx, d) {
     var r = d.hrd || {}, tahap = r.tahap || {}, urut = ['Lamaran Masuk', 'Seleksi Berkas', 'Interview', 'Tes', 'Diterima', 'Ditolak'];
-    var h = '<div class="grid g4 kpi-baris">' + UI.kpi({ label: 'Perawat terdaftar', nilai: U.angka(r.perawat_total), sub: 'master perawat homecare', ikon: 'users-round', utama: true, rute: 'perawat' }) + UI.kpi({ label: 'Kontrak berakhir ≤ 30 hari', nilai: U.angka(r.kontrak), sub: 'perlu perpanjangan / evaluasi', ikon: 'file-clock', rute: 'perawat?tab=kontrak' }) + UI.kpi({ label: 'Masa training', nilai: U.angka(r.training), sub: 'menunggu hasil evaluasi', ikon: 'graduation-cap', rute: 'perawat' }) + UI.kpi({ label: 'Turnover bulan ini', nilai: U.angka(r.turnover_bulan), sub: 'masuk, keluar, rotasi & putus', ikon: 'arrow-left-right', rute: 'turnover' }) + '</div>';
-    h += '<div class="grid g2 mt-16 masuk-2"><div class="kartu"><div class="kartu-kepala"><div><h2>Pipeline rekrutmen</h2><p>Jumlah pelamar per tahap</p></div><a class="btn mini hantu" href="#/rekrutmen">Kelola ' + ic('arrow-right', 'k') + '</a></div><div class="kartu-isi"><div class="corong">' + urut.filter(function (t) { return tahap[t] != null; }).map(function (t) { var maks = Math.max.apply(null, Object.keys(tahap).map(function (k) { return tahap[k]; }).concat([1])); return '<div class="t"><span class="kecil">' + e(t) + '</span><div><div class="b" style="width:' + Math.max(8, tahap[t] / maks * 100) + '%;background:' + (t === 'Ditolak' ? '#94A3B8' : t === 'Diterima' ? 'var(--s3)' : 'var(--s1)') + '">' + tahap[t] + '</div></div><span class="kecil redup">pelamar</span></div>'; }).join('') + '</div></div></div>' +
+    var h = '<div class="pil-baris masuk">' + UI.pil({ ik: 'users-round', l: 'Perawat terdaftar', n: U.angka(r.perawat_total), rute: 'perawat', k: 'utama' }) + UI.pil({ ik: 'file-clock', l: 'Kontrak ≤ 30 hari', n: U.angka(r.kontrak), s: 'perlu evaluasi', rute: 'perawat?tab=kontrak', k: r.kontrak ? 'bahaya' : '' }) + UI.pil({ ik: 'graduation-cap', l: 'Masa training', n: U.angka(r.training), rute: 'perawat' }) + UI.pil({ ik: 'arrow-left-right', l: 'Turnover bulan ini', n: U.angka(r.turnover_bulan), rute: 'turnover' }) + '</div>';
+    h += '<div class="grid g2 masuk-2"><div class="kartu"><div class="kartu-kepala"><div><h2>Pipeline rekrutmen</h2><p>Jumlah pelamar per tahap</p></div><a class="btn mini hantu" href="#/rekrutmen">Kelola ' + ic('arrow-right', 'k') + '</a></div><div class="kartu-isi"><div class="corong">' + urut.filter(function (t) { return tahap[t] != null; }).map(function (t) { var maks = Math.max.apply(null, Object.keys(tahap).map(function (k) { return tahap[k]; }).concat([1])); return '<div class="t"><span class="kecil">' + e(t) + '</span><div><div class="b" style="width:' + Math.max(8, tahap[t] / maks * 100) + '%;background:' + (t === 'Ditolak' ? '#94A3B8' : t === 'Diterima' ? 'var(--s3)' : 'var(--s1)') + '">' + tahap[t] + '</div></div><span class="kecil redup">pelamar</span></div>'; }).join('') + '</div></div></div>' +
       '<div class="kartu"><div class="kartu-kepala"><div><h2>Kontrak segera berakhir</h2><p>Siapkan SPKWT perpanjangan atau evaluasi</p></div></div><div class="kartu-isi rapat"><div class="daftar">' + ((d.kontrak || []).length ? d.kontrak.map(function (k) { return '<div class="item klik" data-rute="perawat?id=' + e(k.id) + '">' + UI.ava(k.nama, 'k') + '<div class="tumpuk tumbuh"><b class="potong">' + e(k.nama) + '</b><span>' + e(k.jabatan) + ' · ' + e(k.divisi) + '</span></div><div class="tumpuk" style="align-items:flex-end"><b class="kecil">' + U.tgl(k.akhir_kontrak) + '</b>' + UI.lencana(k.sisa_hari + ' hari lagi', k.sisa_hari <= 14 ? 'bahaya' : 'warn') + '</div></div>'; }).join('') : UI.kosong('Tidak ada kontrak berakhir', '')) + '</div></div></div></div>';
     return h;
   }
+  function kartuMutasi(d) {
+    return '<div class="kartu"><div class="kartu-kepala"><div><h2>Mutasi petty cash terbaru</h2><p>6 transaksi terakhir</p></div><a class="btn mini primer" href="#/pettycash?baru=1">' + ic('plus', 'k') + 'Ajukan pengeluaran</a></div><div class="kartu-isi rapat"><div class="daftar">' + ((d.mutasi_pc || []).length ? d.mutasi_pc.map(function (m) { return '<div class="item"><span class="ikon-ov ' + (m.tipe === 'Masuk' ? 'ok' : '') + '" style="width:34px;height:34px">' + ic(m.tipe === 'Masuk' ? 'arrow-down-left' : 'arrow-up-right', 'k') + '</span><div class="tumpuk tumbuh"><b class="potong">' + e(m.keterangan) + '</b><span>' + U.tgl(m.tanggal) + ' · ' + e(m.kategori || m.tipe) + '</span></div><div class="tumpuk" style="align-items:flex-end"><b class="angka ' + (m.tipe === 'Masuk' ? 'ok-t' : '') + '">' + (m.tipe === 'Masuk' ? '+' : '−') + U.rp(m.nominal) + '</b>' + UI.lencana(m.status) + '</div></div>'; }).join('') : UI.kosong('Belum ada mutasi', '')) + '</div></div></div>';
+  }
   function dashPC(ctx, d) {
     var aj = d.pengajuan || {};
-    var h = '<div class="grid g3 kpi-baris">' + UI.kpi({ label: 'Saldo petty cash', nilai: U.rpS(d.saldo_pc), sub: 'per hari ini', ikon: 'piggy-bank', utama: true, rute: 'pettycash' }) + UI.kpi({ label: 'Pengajuan petty cash', nilai: U.angka(aj.pc), sub: 'menunggu / diproses Keuangan', ikon: 'hourglass', rute: 'pettycash' }) + UI.kpi({ label: 'Pengajuan gaji', nilai: U.angka(aj.gaji), sub: 'menunggu pembayaran', ikon: 'banknote' }) + '</div>';
-    h += '<div class="kartu mt-16 masuk-2"><div class="kartu-kepala"><div><h2>Mutasi terbaru</h2><p>6 transaksi terakhir</p></div><a class="btn mini primer" href="#/pettycash?baru=1">' + ic('plus', 'k') + 'Ajukan pengeluaran</a></div><div class="kartu-isi rapat"><div class="daftar">' + (d.mutasi_pc || []).map(function (m) { return '<div class="item"><span class="ikon-ov ' + (m.tipe === 'Masuk' ? 'ok' : '') + '" style="width:34px;height:34px">' + ic(m.tipe === 'Masuk' ? 'arrow-down-left' : 'arrow-up-right', 'k') + '</span><div class="tumpuk tumbuh"><b class="potong">' + e(m.keterangan) + '</b><span>' + U.tgl(m.tanggal) + ' · ' + e(m.kategori || m.tipe) + '</span></div><div class="tumpuk" style="align-items:flex-end"><b class="angka ' + (m.tipe === 'Masuk' ? 'ok-t' : '') + '">' + (m.tipe === 'Masuk' ? '+' : '−') + U.rp(m.nominal) + '</b>' + UI.lencana(m.status) + '</div></div>'; }).join('') + '</div></div></div>';
+    return '<div class="pil-baris masuk">' + UI.pil({ ik: 'piggy-bank', l: 'Saldo petty cash', n: U.rpS(d.saldo_pc), s: 'per hari ini', rute: 'pettycash', k: 'utama' }) + UI.pil({ ik: 'hourglass', l: 'Pengajuan petty cash', n: U.angka(aj.pc), s: 'menunggu Keuangan', rute: 'pettycash' }) + UI.pil({ ik: 'banknote', l: 'Pengajuan gaji', n: U.angka(aj.gaji), s: 'menunggu pembayaran' }) + '</div><div class="masuk-2">' + kartuMutasi(d) + '</div>';
+  }
+  function dashKeuangan(ctx, d) {
+    var keu = d.keuangan || {}, aj = d.pengajuan || {};
+    var h = '<div class="pil-baris masuk">' + UI.pil({ ik: 'trending-up', l: 'Omzet SO bulan ini', n: U.rpS(keu.omzet), s: (keu.so_jumlah || 0) + ' SO' + (keu.margin_persen != null ? ' · margin ' + U.persen(keu.margin_persen) : ''), rute: 'analitik', k: 'utama' }) + UI.pil({ ik: 'wallet', l: 'Pembayaran diterima', n: U.rpS(keu.terbayar_bulan), s: 'bulan berjalan', rute: 'sales?tab=invoice' }) + UI.pil({ ik: 'receipt-text', l: 'Piutang', n: U.rpS(keu.piutang), s: '<span class="' + (keu.invoice_terlambat ? 'bahaya-t' : '') + '">' + (keu.invoice_terlambat || 0) + ' lewat jatuh tempo</span>', rute: 'sales?tab=invoice', k: keu.invoice_terlambat ? 'bahaya' : '' }) + UI.pil({ ik: 'hourglass', l: 'Pengajuan menunggu', n: U.angka((aj.gaji || 0) + (aj.pc || 0)), s: (aj.gaji || 0) + ' gaji · ' + (aj.pc || 0) + ' petty cash', rute: 'keuangan' }) + '</div>';
+    h += '<div class="grid g-2-1 masuk-2">' + kartuMendesak(d.perlu_tindakan) + kartuTarget(d.target || []) + '</div><div class="mt-16 masuk-3">' + kartuMutasi(d) + '</div>';
     return h;
   }
 

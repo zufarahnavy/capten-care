@@ -1,4 +1,4 @@
-# Panduan Instalasi — Capten Care Integrated Management System v1.0.0
+# Panduan Instalasi — Capten Care Integrated Management System v2.0.0
 
 PT. Nusantara Insan Sakti · Homecare & Home Visit
 
@@ -19,7 +19,7 @@ Frontend memanggil backend lewat alamat Web App `/exec`. Tanpa backend, frontend
 
 1. Ekstrak ZIP frontend ke sebuah folder, misalnya `capten-care`.
 2. Buka terminal di folder itu, jalankan `python3 -m http.server 8080` (atau `npx serve`), lalu buka `http://localhost:8080`.
-3. Klik salah satu **akun demo** di halaman masuk. Gunakan dropdown **Peran** di bilah atas untuk berpindah peran — menu langsung berubah.
+3. Di halaman masuk klik **Akses Cepat Mode Demo**, pilih peran — form terisi dan Anda langsung masuk. Gunakan dropdown **Peran** di bilah atas untuk berpindah peran — menu langsung berubah.
 
 | Akun demo | Sandi / PIN | Peran |
 | --- | --- | --- |
@@ -32,7 +32,7 @@ Frontend memanggil backend lewat alamat Web App `/exec`. Tanpa backend, frontend
 | `operasional` | `246810` | Operasional |
 | `keuangan` / `pettycash` | `capten2026` | Keuangan / Admin Petty Cash |
 
-Data demo dibuat ulang otomatis mengikuti tanggal hari ini; tombol **Reset data demo** di banner kuning mengembalikannya ke awal.
+Data demo dibuat ulang otomatis mengikuti tanggal hari ini; klik chip **DEMO** di bilah atas → **Reset data demo** untuk mengembalikannya ke awal.
 
 ---
 
@@ -121,7 +121,7 @@ Folder yang di-`git init` adalah **folder tempat `index.html` berada langsung** 
 cd path/ke/capten-care          # di dalamnya langsung ada index.html, css/, js/, assets/
 git init
 git add .
-git commit -m "Capten Care v1.0.0"
+git commit -m "Capten Care v2.0.0"
 git branch -M main
 git remote add origin https://github.com/NAMA-ANDA/capten-care.git
 git push -u origin main
@@ -144,7 +144,7 @@ git commit -m "Perbarui tampilan"
 git push
 ```
 
-Setiap rilis, naikkan angka versi `?v=1.0.0` di `index.html` dan `VERSI` di `sw.js` agar peramban pengguna mengambil berkas terbaru. Lalu tekan Ctrl+Shift+R.
+Setiap rilis, naikkan angka versi `?v=2.0.0` di `index.html` dan `VERSI` di `sw.js` agar peramban pengguna mengambil berkas terbaru. Lalu tekan Ctrl+Shift+R.
 
 ---
 
@@ -232,7 +232,7 @@ Data pasien, perawat, kasus, SO, invoice, pembayaran, dan laporan tidak dapat di
 
 | Gejala | Penyebab & solusi |
 | --- | --- |
-| Banner merah "Server tidak terjangkau" | URL `/exec` salah atau deployment belum "Anyone". Buka URL `/exec` langsung di peramban untuk mengecek |
+| Chip merah "TERPUTUS" di bilah atas | URL `/exec` salah atau deployment belum "Anyone". Buka URL `/exec` langsung di peramban untuk mengecek |
 | "Server belum disiapkan" | `setupAppEnvironment()` belum dijalankan |
 | Login berhasil tapi data lama tidak berubah setelah update backend | Deploy versi baru lewat **Manage deployments**, lalu jalankan `bersihkanCache()` |
 | QR dokumen membuka alamat salah | Pengaturan → Tampilan → Alamat aplikasi → Pakai alamat halaman ini → Simpan |
@@ -243,9 +243,28 @@ Data pasien, perawat, kasus, SO, invoice, pembayaran, dan laporan tidak dapat di
 
 ---
 
+## Memperbarui dari v1.0.0 ke v2.0.0
+
+v2.0 hanya mengubah tampilan (frontend). **Backend Apps Script tidak perlu diubah** — tidak ada `.gs` baru, tidak perlu `migrasiSkema()` maupun deployment baru.
+
+1. Salin isi ZIP v2.0 ke folder repository **kecuali `js/config.js`** (pertahankan URL `/exec` dan `USE_MOCK: false` milik Anda).
+2. `git add . && git commit -m "v2.0.0" && git push`.
+3. Buka aplikasi lalu tekan Ctrl+Shift+R. Versi di kaki halaman harus tertulis **v2.0.0**.
+
 ## 11. Hasil uji sebelum serah terima
 
 - **Logika bisnis (Node):** seluruh aksi API lulus, termasuk RBAC, modul aktif/nonaktif, penggajian, invoice, impor dry-run.
 - **Simulator Apps Script:** 55 eksekusi (setup, data demo, login semua peran, baca/tulis, TTD dokumen, verifikasi publik, antrean WA, pemicu) — lulus; token tidak pernah bocor ke respons maupun ke Sheets; tidak ada kunci (lock) yang tertinggal.
 - **Peramban (Chromium):** 158 halaman pada 10 peran di layar 1440 px dan 390 px — 0 galat JavaScript, 0 ikon hilang, rata-rata pindah menu 95 ms; 408 tombol diklik otomatis — tidak ada yang mati.
 - **Alur end-to-end:** 17/17 lulus (laporan A–H, dokumen ber-QR + PIN + verifikasi, blast per batch, formulir publik pasien & karir, branding tersimpan).
+
+**Uji ulang v2.0.0 (mode demo, Chromium):**
+
+- Semua menu pada 10 peran dibuka di 1440 px, ditambah tampilan 390 px (HP) untuk menu utama: 0 galat JavaScript. Item pertama setiap daftar kartu dibuka dan laci detailnya tampil.
+- Alur end-to-end 17/17 lulus:
+  - Akses Cepat Mode Demo
+  - Laporan A–H: kirim kosong ditolak dengan 25 isian bertanda dan langsung pindah ke bagian bergalat; setelah lengkap, laporan terkirim
+  - Home Visit: consent, foto wajib, dan checklist tersimpan di hasil tindakan
+  - Kalender: klik tanggal dan filter chip
+  - Timeline penugasan membuka laci
+  - Transisi `fadeInUp` dan pill menu aktif

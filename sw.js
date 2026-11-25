@@ -2,9 +2,9 @@
  * Hanya menyimpan aset statis milik situs ini (HTML/CSS/JS/gambar) agar pembukaan berikutnya instan.
  * Permintaan ke Apps Script (API) & data pasien TIDAK PERNAH di-cache di sini.
  * Naikkan VERSI setiap kali merilis frontend baru. */
-var VERSI = 'cc-1.0.0';
-var INTI = ['./', 'index.html', 'css/style.css?v=1.0.0', 'js/config.js?v=1.0.0', 'js/ikon.js?v=1.0.0', 'js/core.js?v=1.0.0',
-  'js/hal-utama.js?v=1.0.0', 'js/hal-layanan.js?v=1.0.0', 'js/hal-data.js?v=1.0.0', 'js/hal-bisnis.js?v=1.0.0', 'js/hal-sistem.js?v=1.0.0',
+var VERSI = 'cc-2.0.0';
+var INTI = ['./', 'index.html', 'css/style.css?v=2.0.0', 'js/config.js?v=2.0.0', 'js/ikon.js?v=2.0.0', 'js/core.js?v=2.0.0',
+  'js/hal-utama.js?v=2.0.0', 'js/hal-layanan.js?v=2.0.0', 'js/hal-data.js?v=2.0.0', 'js/hal-bisnis.js?v=2.0.0', 'js/hal-sistem.js?v=2.0.0',
   'assets/logo.svg', 'assets/icons/favicon.svg', 'manifest.webmanifest'];
 
 self.addEventListener('install', function (e) {
