@@ -13,6 +13,15 @@ python3 -m http.server 8080     # lalu buka http://localhost:8080
 
 `js/config.js` bawaan memakai `USE_MOCK: true` (mode demo): seluruh logika berjalan di peramban dengan data contoh. Di halaman masuk, klik **Akses Cepat Mode Demo** lalu pilih peran (form terisi & langsung masuk); ganti peran kapan saja lewat dropdown **Peran** di bilah atas.
 
+## Yang baru di v2.1
+
+Versi ini **mengubah backend**: tempel ulang 5 berkas `.gs` (Kode, Logika_Inti, Logika_Modul, Logika_Bisnis, Logika_Dokumen), jalankan `migrasiSkema()`, lalu deploy versi baru. Langkah lengkap ada di PANDUAN-INSTALASI.md bagian "Memperbarui dari v2.0.0 ke v2.1.0".
+
+- **Slideshow halaman masuk:** gambar latar di panel kiri bergantian di balik kartu. Admin mengatur dari **Pengaturan → Halaman masuk**: unggah hingga 8 gambar, urutan, judul & teks keterangan, lama tampil (3–30 detik), efek (pudar, geser, zoom perlahan), kecepatan transisi, kegelapan lapisan, urutan acak, indikator, dan jeda saat kursor di panel.
+- **Kartu "LIVE · Penugasan aktif" interaktif:** berisi 1–5 skenario contoh yang ditulis Admin (pasien, perawat, tanda vital, linimasa, progres), selalu berlabel data fiktif. Pengunjung bisa mengganti skenario (panah, titik, geser, atau tombol ← →), klik tanda vital untuk melihat grafik tren, klik kejadian di linimasa untuk melihat detail dan progres, serta melihat efek miring 3D mengikuti kursor. Admin memilih bagian yang tampil dan kecepatan putar otomatis.
+- **Ganti logo & favicon** dari **Pengaturan → Tampilan & branding**, lengkap dengan panduan di layar. Logo dipakai di sidebar, halaman masuk, halaman publik, kop surat PDF, dan invoice.
+- **Foto profil staf (opsional)** untuk semua peran: setiap staf mengunggah, mengganti, atau menghapus fotonya sendiri di **Profil Saya** (dipotong persegi 256×256 px otomatis). Foto tampil di sidebar, Direktori Perawat, penugasan, daftar akun, dan daftar staf lain. Admin dapat menghapus foto yang tidak sesuai dari **Akun & peran**. Foto hanya terlihat oleh pengguna yang sudah masuk.
+
 ## Yang baru di v2.0 (tampilan)
 
 Hanya frontend yang berubah — berkas `.gs` backend **tidak perlu** ditempel ulang (logika `js/logika-*.js` tetap identik dengan server).
@@ -36,12 +45,13 @@ sw.js                   cache aset statis (API & data pasien tidak pernah di-cac
 css/style.css           design system "Clinical Precision" (token warna, tipografi, komponen)
 js/config.js            satu-satunya berkas yang perlu diubah (URL /exec)
 js/core.js              API (live/demo), cache SWR, sesi, router, shell, komponen UI, grafik SVG
+js/masuk.js             halaman masuk: slideshow latar + kartu ilustrasi interaktif
 js/hal-*.js             halaman: utama, layanan, data, bisnis, sistem & halaman publik
 js/logika-*.js          aturan bisnis — identik dengan backend (dipakai mode demo)
 js/data-demo.js, demo.js  data contoh & adaptor penyimpanan peramban
 js/ikon.js              sprite ikon Lucide lokal (ISC)
 js/vendor/qrcode.min.js pembuat QR
-assets/                 logo, ikon PWA, ilustrasi orisinal
+assets/                 logo, ikon PWA, ilustrasi orisinal, contoh gambar slideshow (assets/login/)
 ```
 
 ## Keamanan

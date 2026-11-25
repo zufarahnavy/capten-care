@@ -94,6 +94,9 @@
     catat: function (m) { if (root.console) console.warn('[demo]', m); },
     qr: function (teks) { try { if (typeof qrcode !== 'function') return ''; var q = qrcode(0, 'M'); q.addData(String(teks)); q.make(); return q.createDataURL(3, 2); } catch (e) { return ''; } },
     simpanBerkas: function (data, nama) { var s = String(data || ''); return { id: nama, url: s.length < 260000 ? s : 'assets/ilustrasi/kosong.svg' }; },
+    simpanFoto: function (data) { return { url: String(data || '') }; },   // mode demo: foto profil disimpan sebagai data URL kecil (256 px)
+    ambilFoto: function (url) { return /^data:image\//.test(url) ? url : ''; },
+    buangFoto: function () { return true; },
     antreanBaru: function () { if (antreanTimer) clearTimeout(antreanTimer); antreanTimer = setTimeout(function () { prosesAntrean({}); simpanSekarang(); }, 1500); },
     prosesAntrean: prosesAntrean,
     validasiWA: function (nomor) { var out = {}; nomor.forEach(function (n) { out[n] = /3$/.test(n) ? 'Tidak Terdaftar' : 'Terdaftar'; }); return out; },

@@ -1,4 +1,4 @@
-# Panduan Instalasi — Capten Care Integrated Management System v2.0.0
+# Panduan Instalasi — Capten Care Integrated Management System v2.1.0
 
 PT. Nusantara Insan Sakti · Homecare & Home Visit
 
@@ -144,7 +144,7 @@ git commit -m "Perbarui tampilan"
 git push
 ```
 
-Setiap rilis, naikkan angka versi `?v=2.0.0` di `index.html` dan `VERSI` di `sw.js` agar peramban pengguna mengambil berkas terbaru. Lalu tekan Ctrl+Shift+R.
+Setiap rilis, naikkan angka versi `?v=2.1.0` di `index.html` dan `VERSI` di `sw.js` agar peramban pengguna mengambil berkas terbaru. Lalu tekan Ctrl+Shift+R.
 
 ---
 
@@ -158,6 +158,8 @@ Masuk sebagai `admin` dengan sandi dari log, lalu ganti sandi. Kemudian buka **P
 4. **Paket layanan**, **SLA & shift**, **Master daftar**, **Penomoran** (lanjutkan nomor terakhir surat/invoice lama).
 5. **Akun & peran** → buat akun setiap staf. PIN awal tampil **sekali** di layar; sampaikan langsung dan wajib diganti saat login pertama. Akun perawat wajib ditautkan ke data perawat.
 6. **Modul** → aktifkan modul opsional yang dipakai (Penilaian Klien, Kunjungan Pengawasan, Mess & Antar-Jemput, Penalti Kontrak).
+7. **Tampilan & branding** → unggah **Logo aplikasi** dan **Favicon** milik perusahaan (bagian 12).
+8. **Halaman masuk** → ganti gambar contoh slideshow dengan foto suasana layanan Anda dan sesuaikan skenario kartu (bagian 11).
 
 ---
 
@@ -240,6 +242,108 @@ Data pasien, perawat, kasus, SO, invoice, pembayaran, dan laporan tidak dapat di
 | Halaman GitHub Pages 404 | `index.html` harus di akar repository; tunggu 1–2 menit setelah mengaktifkan Pages |
 | Tampilan lama masih muncul | Naikkan `?v=` & `VERSI` di `sw.js`, push, lalu Ctrl+Shift+R |
 | `git push` meminta sandi lalu gagal | Gunakan Personal Access Token, bukan sandi akun GitHub |
+| Foto profil gagal disimpan, atau hilang setelah halaman dimuat ulang | Backend belum v2.1, atau `migrasiSkema()` belum dijalankan sehingga kolom `foto_url` di tab Users belum ada |
+| Gambar slideshow atau logo tidak muncul | Gambar harus diunggah lewat Pengaturan (tersimpan di folder Drive `Aset_Brand`). Berkas yang dipindah keluar dari folder itu tidak dilayani demi keamanan; unggah ulang |
+| Favicon di tab sudah berganti, tapi ikon di layar HP belum | Ikon instal (PWA) diambil dari berkas di repositori, bukan dari Pengaturan (bagian 12.2) |
+
+---
+
+## 11. Halaman masuk: slideshow & kartu interaktif
+
+Panel kiri halaman masuk berisi **slideshow gambar** di latar belakang dan **kartu "LIVE · Penugasan aktif"** yang melayang di atasnya. Semua diatur Admin di **Pengaturan → Halaman masuk**, dengan pratinjau langsung di kanan sebelum disimpan.
+
+**Slideshow**
+
+1. Klik **Tambah gambar**, pilih 1 atau beberapa gambar sekaligus (maksimal 8 gambar).
+2. Isi **judul** dan **teks keterangan** bila perlu (tampil di kiri bawah). Atur urutan dengan tombol panah, hapus dengan ikon tempat sampah.
+3. Atur **Tampil per gambar** (3–30 detik), **Efek transisi** (pudar, geser, atau zoom perlahan), **Kecepatan transisi** (0,6–2,2 detik), dan **Kegelapan lapisan** (30–90%, agar kartu dan teks tetap terbaca).
+4. Opsi: urutan acak, indikator gambar, judul & keterangan, jeda saat kursor di panel.
+5. Klik **Simpan halaman masuk**. Perubahan berlaku seketika.
+
+Panduan gambar:
+
+| Hal | Ketentuan |
+| --- | --- |
+| Format | JPG, PNG, atau WebP |
+| Ukuran | Mendatar (landscape), disarankan 1600×1100 px atau lebih. Dikompres otomatis di peramban (sisi terpanjang 1.600 px, JPG) |
+| Isi | Foto suasana layanan, tim, atau kantor. **Jangan** memakai wajah pasien atau dokumen medis, karena halaman masuk terbuka untuk publik. Pastikan perusahaan berhak memakai foto tersebut |
+| Komposisi | Kartu menutupi bagian tengah gambar; letakkan bagian penting di tepi |
+| Penyimpanan | Folder Drive `Aset_Brand`. Menghapus gambar dari slideshow tidak menghapus berkasnya di Drive |
+
+**Kartu "LIVE · Penugasan aktif"**
+
+- Berisi 1–5 **skenario contoh** yang ditulis Admin: label, nama pasien, keterangan, status, perawat, tanda vital (maks. 4, beserta riwayat tren dipisah titik koma, misalnya `136/88; 131/84; 128/82`), linimasa (maks. 5 kejadian, masing-masing dengan detail dan nilai progres), serta progres laporan.
+- Kartu **selalu berlabel "Pratinjau ilustrasi · data fiktif"**. Jangan isi dengan data pasien asli.
+- Admin memilih bagian yang tampil (perawat, tanda vital, linimasa, progres), label atas kartu, putar otomatis (mati atau tiap 5–30 detik), dan efek miring 3D.
+- Interaksi pengunjung: ganti skenario dengan panah, titik, geser layar sentuh, atau tombol ← → di keyboard; klik tanda vital untuk grafik tren; klik kejadian linimasa untuk detail dan progres; kartu miring mengikuti kursor. Putar otomatis berhenti selama kartu disentuh atau diarahkan kursor.
+- Efek miring dan animasi otomatis dimatikan bila perangkat meminta gerak dikurangi.
+- Di layar HP (≤ 860 px) panel kiri disembunyikan; slideshow dan kartu hanya tampil di tablet dan desktop.
+
+---
+
+## 12. Logo, favicon & ikon aplikasi
+
+### 12.1 Dari aplikasi (disarankan)
+
+1. Masuk sebagai Admin → **Pengaturan → Tampilan & branding** → kartu **Identitas aplikasi**.
+2. Klik kotak **Logo aplikasi**, pilih berkas. Klik kotak **Favicon**, pilih berkas.
+3. Periksa pratinjau (favicon langsung berganti di tab peramban), lalu klik **Simpan tampilan**.
+4. Untuk kembali ke logo bawaan Capten Care: klik **Bawaan** di atas kotaknya, lalu **Simpan tampilan**.
+
+| | Logo aplikasi | Favicon |
+| --- | --- | --- |
+| Format | PNG berlatar transparan atau SVG (JPG/WebP juga diterima) | PNG atau SVG |
+| Bentuk & ukuran | Persegi, minimal 256×256 px | Persegi, 64–512 px, bentuk sederhana agar terbaca di 16 px |
+| Diolah otomatis | Diperkecil ke maks. 512 px | Dipotong persegi dari tengah, 192 px PNG |
+| Batas | SVG maks. ±100 KB; tanpa skrip (SVG berisi skrip ditolak) | sama |
+| Dipakai di | Sidebar, halaman masuk, halaman publik (lowongan & verifikasi), kop surat PDF, invoice | Tab peramban |
+
+Gambar disimpan di folder Drive `Aset_Brand` dan disajikan oleh server; tidak perlu membagikan folder itu ke publik.
+
+### 12.2 Berkas di repositori (ikon instal HP & tampilan awal)
+
+Beberapa ikon dibaca peramban **sebelum** aplikasi memuat pengaturan, jadi tetap diambil dari berkas di repositori GitHub:
+
+| Berkas | Ukuran | Dipakai untuk |
+| --- | --- | --- |
+| `assets/icons/favicon.svg` | SVG persegi | Favicon sekejap sebelum pengaturan termuat, dan bookmark |
+| `assets/icons/icon-192.png`, `icon-512.png` | 192×192 dan 512×512 px PNG | Ikon saat aplikasi diinstal ke layar HP / desktop (PWA) |
+| `assets/icons/maskable-192.png`, `maskable-512.png` | 192×192 dan 512×512 px PNG, latar penuh (tidak transparan), logo di 80% bagian tengah | Ikon PWA di Android yang dipotong bulat/kotak membulat |
+| `assets/logo.svg` | SVG persegi | Logo cadangan bila logo dari Pengaturan belum termuat |
+
+Langkah:
+
+1. Siapkan berkas pengganti dengan **nama dan format yang sama** (SVG tetap SVG, PNG tetap PNG). Jika favicon Anda hanya ada dalam PNG, simpan sebagai `assets/icons/favicon.png` lalu ubah baris favicon di `index.html` menjadi `<link rel="icon" href="assets/icons/favicon.png" type="image/png">`.
+2. Timpa berkas lama di folder repository.
+3. Naikkan versi: `?v=2.1.0` di `index.html` (misalnya menjadi `?v=2.1.1`) dan `VERSI` di `sw.js` (misalnya `cc-2.1.1`).
+4. `git add . && git commit -m "Ganti ikon" && git push`, lalu tekan Ctrl+Shift+R.
+5. Ikon PWA yang sudah terpasang di HP baru berganti setelah aplikasi dihapus dari layar utama lalu dipasang ulang (perilaku Android/iOS).
+6. Opsional: ubah `name`, `short_name`, dan `theme_color` di `manifest.webmanifest` bila nama atau warna brand berubah.
+
+---
+
+## 13. Foto profil staf
+
+Setiap staf di semua peran dapat memasang foto profil. Sifatnya **opsional**: tanpa foto, avatar memakai inisial nama.
+
+**Untuk staf (Profil Saya):**
+
+1. Klik nama Anda di kiri bawah → **Profil, foto & PIN** (halaman Profil Saya).
+2. Klik **Unggah foto** (atau **Ganti foto**) dan pilih gambar. Di HP, galeri atau kamera bisa dipakai.
+3. Foto langsung tampil. Untuk kembali ke inisial, klik **Hapus**.
+
+Panduan foto (juga tersedia di layar, tautan **Panduan foto profil**):
+
+| Hal | Ketentuan |
+| --- | --- |
+| Format | JPG, PNG, atau WebP, maksimal 8 MB |
+| Diolah otomatis | Dipotong persegi dari bagian tengah, diperkecil ke 256×256 px JPG sebelum dikirim. Letakkan wajah di tengah |
+| Foto yang baik | Wajah sendiri, tampak depan, terang, latar polos, tanpa kacamata hitam atau masker |
+| Dilarang | Foto pasien, keluarga pasien, logo, atau gambar lain |
+| Terlihat oleh | Hanya pengguna yang sudah masuk: sidebar, Direktori Perawat, penugasan, daftar akun, dan daftar staf lain. Tidak tampil di halaman masuk, formulir publik, invoice, maupun dokumen PDF |
+| Penyimpanan | Folder Drive privat `Foto_Profil`. Foto lama otomatis dihapus saat diganti atau dihapus. Foto di perangkat dibersihkan saat keluar |
+
+**Untuk Admin:** foto yang tidak sesuai dapat dihapus dari **Pengaturan → Akun & peran → ⋯ → Hapus foto profil** (alasan wajib, tercatat di Log Aktivitas). Staf tetap bisa mengunggah foto baru. Admin tidak dapat mengunggah foto atas nama staf lain.
 
 ---
 
@@ -251,7 +355,20 @@ v2.0 hanya mengubah tampilan (frontend). **Backend Apps Script tidak perlu diuba
 2. `git add . && git commit -m "v2.0.0" && git push`.
 3. Buka aplikasi lalu tekan Ctrl+Shift+R. Versi di kaki halaman harus tertulis **v2.0.0**.
 
-## 11. Hasil uji sebelum serah terima
+## Memperbarui dari v2.0.0 ke v2.1.0
+
+v2.1 **mengubah backend**. Perbarui backend dulu, baru frontend.
+
+1. **Backend:** di editor Apps Script, timpa isi 5 berkas ini dengan versi v2.1: `Kode.gs`, `Logika_Inti.gs`, `Logika_Modul.gs`, `Logika_Bisnis.gs`, `Logika_Dokumen.gs`. Berkas lain (`Setup.gs`, `DataDemo.gs`, `Notifikasi.gs`, `Migrasi.gs`, `DokumenEngine.gs`, `QrLib.gs`, `appsscript.json`) tidak berubah.
+2. **Save**, lalu jalankan `migrasiSkema()`. Fungsi ini menambah kolom `foto_url` di tab Users tanpa mengubah data lama.
+3. **Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy.** Jangan membuat *New deployment*, karena URL `/exec` akan berubah.
+4. **Frontend:** salin isi ZIP v2.1 ke folder repository **kecuali `js/config.js`**, lalu `git add . && git commit -m "v2.1.0" && git push`.
+5. Buka aplikasi lalu tekan Ctrl+Shift+R. Versi di kaki halaman harus tertulis **v2.1.0**.
+6. Atur logo, favicon, dan halaman masuk (bagian 11 dan 12).
+
+Folder Drive `Foto_Profil` dibuat otomatis saat foto pertama diunggah. Tidak ada Script Properties baru.
+
+## 14. Hasil uji sebelum serah terima
 
 - **Logika bisnis (Node):** seluruh aksi API lulus, termasuk RBAC, modul aktif/nonaktif, penggajian, invoice, impor dry-run.
 - **Simulator Apps Script:** 55 eksekusi (setup, data demo, login semua peran, baca/tulis, TTD dokumen, verifikasi publik, antrean WA, pemicu) — lulus; token tidak pernah bocor ke respons maupun ke Sheets; tidak ada kunci (lock) yang tertinggal.
@@ -268,3 +385,14 @@ v2.0 hanya mengubah tampilan (frontend). **Backend Apps Script tidak perlu diuba
   - Kalender: klik tanggal dan filter chip
   - Timeline penugasan membuka laci
   - Transisi `fadeInUp` dan pill menu aktif
+
+**Uji ulang v2.1.0 (mode demo, Chromium, 25 November 2026):**
+
+- 158 halaman pada 10 peran di layar 1440 px, ditambah Profil Saya, Direktori Perawat, Dashboard, Laporan, dan Pengaturan (Halaman masuk, Tampilan & branding, Akun & peran) di layar 390 px: 0 galat JavaScript.
+- Alur end-to-end lama 17/17 tetap lulus.
+- Fitur baru 36/36 lulus:
+  - Halaman masuk: kotak angka publik tidak ada; slideshow berganti otomatis; indikator dan klik titik; ganti skenario lewat panah, titik, dan keyboard; klik tanda vital menampilkan dan menutup grafik tren; klik linimasa menampilkan detail dan menggerakkan progres; kartu miring mengikuti kursor.
+  - Admin halaman masuk: unggah gambar slide, ubah lama tampil dan efek, ubah skenario, pratinjau ikut berubah sebelum simpan; setelah disimpan, halaman masuk memakai gambar, efek, dan skenario baru.
+  - Logo & favicon: panduan tampil; favicon berganti saat pratinjau; pratinjau warna yang belum disimpan dibatalkan saat pindah halaman; logo sidebar dan halaman masuk berganti setelah simpan; favicon bertahan setelah dimuat ulang.
+  - Foto profil: unggah dari Profil Saya, avatar profil dan sidebar berfoto, tombol berganti jadi Ganti foto + Hapus, foto tampil bagi Admin di Direktori Perawat dan Akun & peran, Admin menghapus foto dengan alasan.
+- Berkas `.gs` hasil sinkron identik dengan `js/logika-*.js` dan lolos cek sintaks.

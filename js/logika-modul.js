@@ -139,8 +139,71 @@ CC.A['auth.boot'] = {
       format_laporan: CC.set('format_laporan'), operasional: CC.set('operasional'), badge: CC.badge(ctx), notif_belum: notif,
       paket: CC.aktifSaja(CC.semua(CC.T.PAKET)).sort(function (a, b) { return Number(a.urutan) - Number(b.urutan); }).map(function (p) { var c = Object.assign({}, p); if (!CC.lihatNominal(ctx) && ctx.peran !== 'KEP') { c.harga_bawaan = ''; } if (!CC.lihatMargin(ctx) && ctx.peran !== 'KEP') c.gaji_bawaan = ''; return c; }),
       gaji_tersimpan: !!gaji && CC.setRiwayat('gaji').length > 0,
+      foto_staf: CC.petaFotoStaf(),
       server: { versi: CC.VERSI, waktu: CC.u.dt(), mode: CC.env.mode }
     };
+  }
+};
+/* ===================== HALAMAN MASUK & FOTO PROFIL (v1.1) ===================== */
+CC.A['publik.login'] = {
+  publik: true,
+  fn: function () { return { login: CC.loginSiap(CC.set('login')) }; }
+};
+/* Gambar publik (logo, favicon, slide) — hanya berkas di folder Aset_Brand yang dilayani */
+CC.A['publik.aset'] = {
+  publik: true,
+  fn: function (ctx, p) {
+    var u = String(p.url || '');
+    if (/^(assets\/|https:\/\/|data:image\/)/.test(u)) return { data: u };
+    if (!/^drive:[A-Za-z0-9_-]{10,}$/.test(u) || !CC.env.ambilAsetPublik) CC.galat('NOT_FOUND', 'Gambar tidak tersedia.');
+    var d = CC.env.ambilAsetPublik(u); if (!d) CC.galat('NOT_FOUND', 'Gambar tidak tersedia.');
+    return { data: d };
+  }
+};
+/* Peta foto staf untuk avatar di seluruh aplikasi: u = user_id, p = perawat_id, n = nama */
+CC.petaFotoStaf = function () {
+  return CC.semua(CC.T.USER).filter(function (u) { return u.status_akun === 'Aktif' && u.status_arsip !== 'Arsip' && CC.refFoto(u.foto_url); })
+    .map(function (u) { return { u: u.id, p: u.perawat_id || '', n: u.nama, f: CC.refFoto(u.foto_url) }; });
+};
+CC.FOTO_MAKS = 160000;   // ±115 KB setelah kompresi 256×256 di peramban
+CC.A['profil.foto'] = {
+  tulis: true,
+  fn: function (ctx, p) {
+    var u = CC.cari(CC.T.USER, ctx.user.id), lama = CC.refFoto(u.foto_url), baru = '';
+    if (!p.hapus) {
+      var d = String(p.data || '');
+      if (!/^data:image\/(png|jpeg|webp);base64,/.test(d)) CC.galat('VALIDATION', 'Foto harus berformat JPG, PNG, atau WebP.');
+      if (d.length > CC.FOTO_MAKS) CC.galat('VALIDATION', 'Ukuran foto terlalu besar setelah dikompres (maks ±115 KB). Coba foto lain.');
+      baru = CC.env.simpanFoto ? CC.env.simpanFoto(d, 'foto_' + u.id).url : d;
+    }
+    CC.ubah(ctx, CC.T.USER, u.id, { foto_url: baru }, { aksi: p.hapus ? 'HAPUS_FOTO' : 'GANTI_FOTO', ket: 'Foto profil' });
+    if (lama && lama !== baru && CC.env.buangFoto) { try { CC.env.buangFoto(lama); } catch (e) { } }
+    ctx.pesan = p.hapus ? 'Foto profil dihapus.' : 'Foto profil diperbarui.';
+    return { foto_url: CC.refFoto(baru) };
+  }
+};
+CC.A['akun.fotoHapus'] = {
+  roles: ['ADM'], tulis: true,
+  fn: function (ctx, p) {
+    var u = CC.cari(CC.T.USER, p.id); if (!u) CC.galat('NOT_FOUND', 'Akun tidak ditemukan.');
+    var lama = CC.refFoto(u.foto_url); if (!lama) return { foto_url: '' };
+    CC.ubah(ctx, CC.T.USER, u.id, { foto_url: '' }, { aksi: 'HAPUS_FOTO', ket: 'Dihapus Admin: ' + String(p.alasan || '').slice(0, 120) });
+    if (CC.env.buangFoto) { try { CC.env.buangFoto(lama); } catch (e) { } }
+    ctx.pesan = 'Foto profil ' + u.nama + ' dihapus.';
+    return { foto_url: '' };
+  }
+};
+/* Ambil data foto (maks 30 per panggilan). Hanya referensi yang memang dipakai akun aktif yang dilayani. */
+CC.A['foto.ambil'] = {
+  fn: function (ctx, p) {
+    var sah = {}; CC.petaFotoStaf().forEach(function (x) { sah[x.f] = 1; });
+    var out = {};
+    (Array.isArray(p.refs) ? p.refs : []).slice(0, 30).forEach(function (r) {
+      r = String(r || ''); if (!sah[r]) return;
+      if (/^data:image\//.test(r)) out[r] = r;
+      else if (CC.env.ambilFoto) { var d = CC.env.ambilFoto(r); if (d) out[r] = d; }
+    });
+    return { foto: out };
   }
 };
 CC.A['publik.tema'] = { publik: true, fn: function () { var b = CC.set('branding'), p = CC.set('profil'); return { branding: b, profil: { brand: p.brand, nama_perusahaan: p.nama_perusahaan, wa: p.wa, email: p.email } }; } };
@@ -423,7 +486,7 @@ CC.tautanValid = function (token, jenis) {
   if (Number(t.jumlah_kirim || 0) >= 3) CC.galat('FORBIDDEN', 'Batas pengiriman formulir untuk tautan ini sudah tercapai.');
   return t;
 };
-CC.A['publik.formInfo'] = { publik: true, fn: function (ctx, p) { var t = p.jenis === 'karir' ? null : CC.tautanValid(p.token, 'pasien'); var b = CC.set('branding'), prof = CC.set('profil'); return { nama: t ? t.dibuat_untuk : '', berlaku_sampai: t ? t.berlaku_sampai : '', dipakai_pada: t ? t.dipakai_pada || '' : '', sisa_kirim: t ? 3 - Number(t.jumlah_kirim || 0) : null, branding: b, profil: { brand: prof.brand, nama_perusahaan: prof.nama_perusahaan, wa: prof.wa }, master: { wilayah: CC.set('master').wilayah, posisi: CC.set('master').jabatan } }; } };
+CC.A['publik.formInfo'] = { publik: true, fn: function (ctx, p) { var t = p.jenis === 'karir' ? null : CC.tautanValid(p.token, 'pasien'); var b = CC.set('branding'), prof = CC.set('profil'); return { nama: t ? t.dibuat_untuk : '', berlaku_sampai: t ? t.berlaku_sampai : '', dipakai_pada: t ? t.dipakai_pada || '' : '', sisa_kirim: t ? 3 - Number(t.jumlah_kirim || 0) : null, branding: CC.brandingSiap ? CC.brandingSiap(b) : b, profil: { brand: prof.brand, nama_perusahaan: prof.nama_perusahaan, wa: prof.wa }, master: { wilayah: CC.set('master').wilayah, posisi: CC.set('master').jabatan } }; } };
 CC.A['publik.formPasien'] = {
   publik: true, tulis: true,
   fn: function (ctx, p) {

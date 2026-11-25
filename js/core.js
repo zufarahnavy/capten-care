@@ -6,7 +6,7 @@
  * ===================================================================== */
 (function (W, D) {
   'use strict';
-  var CFG = W.CONFIG || {}, VERSI = '2.0.0';
+  var CFG = W.CONFIG || {}, VERSI = '2.1.0';
 
   /* ===================== UTILITAS ===================== */
   var BLN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -54,6 +54,27 @@
     jumlah: function (rows, f) { return rows.reduce(function (a, r) { return a + U.n(typeof f === 'function' ? f(r) : r[f]); }, 0); },
     cocok: function (r, q, kunci) { if (!q) return true; q = q.toLowerCase(); return (kunci || Object.keys(r)).some(function (k) { var v = r[k]; return v != null && String(v).toLowerCase().indexOf(q) > -1; }); },
     fileKeData: function (f, maks) { return new Promise(function (ok, gagal) { if (!f) return ok(''); if (f.size > (maks || 4) * 1048576) return gagal(new Error('Ukuran berkas maksimal ' + (maks || 4) + ' MB.')); var r = new FileReader(); r.onload = function () { ok(r.result); }; r.onerror = function () { gagal(new Error('Berkas tidak dapat dibaca.')); }; r.readAsDataURL(f); }); },
+    /* Kompres gambar di peramban. o: { maks (px sisi terpanjang), format ('image/jpeg'|'image/png'|'image/webp'), kualitas, kotak (potong persegi di tengah), batas (maks panjang data URL) } */
+    olahGambar: function (dataUrl, o) {
+      o = o || {}; if (!/^data:image\/(png|jpe?g|webp|gif|bmp)/.test(dataUrl)) return Promise.resolve(dataUrl);
+      return new Promise(function (ok, gagal) {
+        var img = new Image();
+        img.onload = function () {
+          var sw = img.naturalWidth, sh = img.naturalHeight, sx = 0, sy = 0;
+          if (o.kotak) { var m = Math.min(sw, sh); sx = (sw - m) / 2; sy = (sh - m) / 2; sw = sh = m; }
+          var s = Math.min(1, (o.maks || 1280) / Math.max(sw, sh)), c = D.createElement('canvas'), fmt = o.format || 'image/jpeg', q = o.kualitas || .82, hasil;
+          c.width = Math.max(1, Math.round(sw * s)); c.height = Math.max(1, Math.round(sh * s));
+          var g = c.getContext('2d'); if (fmt === 'image/jpeg') { g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); }
+          g.imageSmoothingQuality = 'high'; g.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+          hasil = c.toDataURL(fmt, q);
+          while (o.batas && hasil.length > o.batas && fmt !== 'image/png' && q > .45) { q -= .08; hasil = c.toDataURL(fmt, q); }
+          if (o.batas && hasil.length > o.batas) return gagal(new Error('Gambar masih terlalu besar setelah dikompres. Gunakan gambar dengan resolusi lebih kecil.'));
+          ok(hasil);
+        };
+        img.onerror = function () { gagal(new Error('Gambar tidak dapat dibaca. Gunakan JPG, PNG, atau WebP.')); };
+        img.src = dataUrl;
+      });
+    },
     kecilkanGambar: function (dataUrl, maks) { return new Promise(function (ok) { if (!/^data:image\/(png|jpe?g|webp)/.test(dataUrl)) return ok(dataUrl); var img = new Image(); img.onload = function () { var s = Math.min(1, (maks || 1280) / Math.max(img.width, img.height)), c = D.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); ok(c.toDataURL('image/jpeg', .82)); }; img.onerror = function () { ok(dataUrl); }; img.src = dataUrl; }); }
   };
   function ic(n, k) { return '<svg class="ik' + (k ? ' ' + k : '') + '" aria-hidden="true"><use href="#i-' + n + '"/></svg>'; }
@@ -82,13 +103,13 @@
     selesai: function () { this.n = Math.max(0, this.n - 1); if (this.n) return; var el = this.el; if (!el) return; clearTimeout(this.t); el.style.width = '100%'; this.t = setTimeout(function () { el.classList.remove('jalan'); setTimeout(function () { el.style.width = '0'; }, 300); }, 220); }
   };
   function htmlPemuat(teks, sub, gelap) {
-    return '<div class="pemuat"><div class="orbit"><svg class="jejak" viewBox="0 0 74 74"><circle cx="37" cy="37" r="34"/></svg><svg class="cincin" viewBox="0 0 74 74"><circle cx="37" cy="37" r="34"/></svg><div class="inti"><img src="assets/logo.svg" alt=""></div></div>' +
+    return '<div class="pemuat"><div class="orbit"><svg class="jejak" viewBox="0 0 74 74"><circle cx="37" cy="37" r="34"/></svg><svg class="cincin" viewBox="0 0 74 74"><circle cx="37" cy="37" r="34"/></svg><div class="inti"><img src="' + U.e((function () { try { return localStorage.getItem('cc_logo'); } catch (e) { return ''; } })() || 'assets/logo.svg') + '" alt=""></div></div>' +
       '<svg class="ekg" viewBox="0 0 180 36"><path d="M0 18h52l6-10 8 22 7-28 7 24 5-8h95"/></svg>' + (teks ? '<div class="teks-muat">' + U.e(teks) + (sub ? '<span>' + U.e(sub) + '</span>' : '') + '</div>' : '') + '</div>';
   }
 
   /* ===================== LAPISAN API ===================== */
   var BACA = {};
-  ('crud.list auth.boot publik.tema notif.inapp cari.global dash.data pasien.detail pasien.tautanList publik.formInfo perawat.direktori perawat.kontrak penugasan.list absensi.grid libur.list laporan.konteks laporan.list laporan.detail laporan.kepatuhan hv.list idf.list idf.detail pipeline.list kasus.list kasus.mingguan turnover.rekap ops.harian so.list so.cekAdmin invoice.list invoice.detail perpanjangan.list gaji.lihat gaji.daftarBayar gaji.simulasi gaji.cariPerawat pc.buku pc.tahunan keu.laporan target.capaian analitik.penjualan pengaturan.ambil log.list sistem.status notif.config notif.antrean wa.perangkat wa.blastList crm.list crm.stats crm.detail berkas.ambil tpl.list tpl.detail tpl.pratinjau dok.list dok.detail publik.verifikasi invoice.html').split(' ').forEach(function (a) { BACA[a] = 1; });
+  ('crud.list auth.boot publik.tema publik.login publik.aset foto.ambil notif.inapp cari.global dash.data pasien.detail pasien.tautanList publik.formInfo perawat.direktori perawat.kontrak penugasan.list absensi.grid libur.list laporan.konteks laporan.list laporan.detail laporan.kepatuhan hv.list idf.list idf.detail pipeline.list kasus.list kasus.mingguan turnover.rekap ops.harian so.list so.cekAdmin invoice.list invoice.detail perpanjangan.list gaji.lihat gaji.daftarBayar gaji.simulasi gaji.cariPerawat pc.buku pc.tahunan keu.laporan target.capaian analitik.penjualan pengaturan.ambil log.list sistem.status notif.config notif.antrean wa.perangkat wa.blastList crm.list crm.stats crm.detail berkas.ambil tpl.list tpl.detail tpl.pratinjau dok.list dok.detail publik.verifikasi invoice.html').split(' ').forEach(function (a) { BACA[a] = 1; });
   function ApiError(code, message, fields) { this.code = code || 'SERVER'; this.message = message || 'Terjadi kesalahan.'; this.fields = fields || null; }
   ApiError.prototype = Object.create(Error.prototype);
   var API = {
@@ -221,7 +242,7 @@
     muat: function () { try { var s = JSON.parse(localStorage.getItem('cc_sesi') || 'null'); if (s && s.mode === API.mode && s.token) { API.token = s.token; this.uid = s.uid; return true; } } catch (e) { } return false; },
     simpanToken: function (t) { try { var s = JSON.parse(localStorage.getItem('cc_sesi') || '{}'); s.token = t; s.mode = API.mode; localStorage.setItem('cc_sesi', JSON.stringify(s)); } catch (e) { } },
     simpan: function (token, me) { API.token = token; if (this.uid !== me.id) Object.keys(HST).forEach(function (k) { delete HST[k]; }); this.uid = me.id; try { localStorage.setItem('cc_sesi', JSON.stringify({ token: token, uid: me.id, mode: API.mode, nama: me.nama })); } catch (e) { } },
-    hapus: function () { API.token = ''; this.uid = ''; this.me = null; this.boot = null; try { localStorage.removeItem('cc_sesi'); } catch (e) { } Data.hapusSemua(); },
+    hapus: function () { API.token = ''; this.uid = ''; this.me = null; this.boot = null; Foto.indeks([]); Media.bersihkanFoto(); try { localStorage.removeItem('cc_sesi'); } catch (e) { } Data.hapusSemua(); },
     berakhir: function (pesan) { if (!this.me) return; this.hapus(); UI.tutupSemua(); Router.ke('masuk'); setTimeout(function () { UI.toast(pesan || 'Sesi berakhir. Silakan masuk kembali.', 'warn'); }, 200); },
     keluar: function () { var self = this; UI.konfirmasi({ judul: 'Keluar dari aplikasi?', pesan: 'Sesi di perangkat ini akan diakhiri. Data yang belum disimpan akan hilang.', ok: 'Keluar', ikon: 'log-out' }).then(function (v) { if (!v) return; self.hapus(); Shell.hancurkan(); Router.ke('masuk'); UI.toast('Anda telah keluar.', 'ok'); }); },
     masuk: function (username, pin, o) {
@@ -232,15 +253,106 @@
     },
     muatBoot: function (o) {
       var self = this;
-      return API.panggil('auth.boot', {}, { instan: o && o.instan }).then(function (b) { self.boot = b; self.me = b.me; self.uid = b.me.id; Tema.terapkan(b.branding); Data.pulihkanSesi(); return b; });
+      return API.panggil('auth.boot', {}, { instan: o && o.instan }).then(function (b) { self.boot = b; self.me = b.me; self.uid = b.me.id; Foto.indeks(b.foto_staf); Tema.terapkan(Tema.pratinjau || b.branding); Data.pulihkanSesi(); return b; });
     }
   };
 
   /* ===================== TEMA / BRANDING ===================== */
   function hexRgb(h) { h = String(h || '').replace('#', ''); if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join(''); var n = parseInt(h, 16); return isNaN(n) ? [0, 194, 255] : [n >> 16 & 255, n >> 8 & 255, n & 255]; }
   function campur(h, putih) { var c = hexRgb(h); return 'rgb(' + c.map(function (v) { return Math.round(v + (255 - v) * putih); }).join(',') + ')'; }
+  /* ===================== MEDIA: gambar slide, aset brand & foto profil =====================
+   * Referensi: 'assets/…' | 'https://…' | 'data:image/…' dipakai langsung; 'drive:<id>' diambil dari server
+   * (publik.aset untuk aset brand, foto.ambil untuk foto staf) lalu disimpan di Cache Storage peramban
+   * ('ccm-media-v1') sehingga kunjungan berikutnya tampil seketika. ID berkas Drive berubah tiap unggah ulang. */
+  var Media = {
+    NAMA: 'ccm-media-v1', url: {}, janji: {},
+    kunci: function (ref) { ref = String(ref || ''); return /^drive:/.test(ref) ? ref.slice(6) : /^data:/.test(ref) ? 'd' + U.hash(ref) : ref; },
+    langsung: function (ref) { return /^(assets\/|https:\/\/|data:image\/)/.test(String(ref || '')); },
+    siap: function (ref) { if (!ref) return ''; if (this.langsung(ref)) return ref; return this.url[this.kunci(ref)] || ''; },
+    _cs: function () { try { return W.caches && W.isSecureContext ? W.caches.open(this.NAMA) : null; } catch (e) { return null; } },
+    _blob: function (dataUrl) { var m = dataUrl.match(/^data:([^;]+);base64,(.*)$/), bin = atob(m[2]), a = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new Blob([a], { type: m[1] }); },
+    _jalur: function (k, jenis) { return '/__ccm/' + (jenis === 'foto' ? 'f/' : 'a/') + encodeURIComponent(k); },
+    _dariCache: function (k, jenis) { var cs = this._cs(), self = this; if (!cs) return Promise.resolve(''); return cs.then(function (c) { return c.match(self._jalur(k, jenis)); }).then(function (r) { return r ? r.blob() : null; }).then(function (b) { if (!b) return ''; return (self.url[k] = URL.createObjectURL(b)); }).catch(function () { return ''; }); },
+    _simpan: function (k, dataUrl, jenis) {
+      var self = this, cs = this._cs(), b; try { b = this._blob(dataUrl); } catch (e) { return (self.url[k] = dataUrl); }
+      self.url[k] = URL.createObjectURL(b);
+      if (cs) cs.then(function (c) { return c.put(self._jalur(k, jenis), new Response(b, { headers: { 'Content-Type': b.type } })); }).catch(function () { });
+      return self.url[k];
+    },
+    /* jenis: 'aset' (publik) | 'foto' (perlu login). Mengembalikan Promise<url siap pakai>. */
+    ambil: function (ref, jenis) {
+      if (!ref) return Promise.resolve(''); if (this.langsung(ref)) return Promise.resolve(ref);
+      var k = this.kunci(ref), self = this; if (this.url[k]) return Promise.resolve(this.url[k]);
+      if (this.janji[k]) return this.janji[k];
+      var p = this._dariCache(k, jenis).then(function (u) {
+        if (u) return u;
+        var minta = jenis === 'foto' ? Foto._minta(ref) : API.panggil('publik.aset', { url: ref }, { diam: true }).then(function (d) { return d && d.data; });
+        return minta.then(function (data) { if (!data) return ''; return self.langsung(data) && !/^data:/.test(data) ? data : self._simpan(k, data, jenis); });
+      }).then(function (u) { delete self.janji[k]; return u; }, function () { delete self.janji[k]; return ''; });
+      return (this.janji[k] = p);
+    },
+    /* Saat keluar: foto staf di perangkat dibersihkan (aset brand publik tetap) */
+    bersihkanFoto: function () { var cs = this._cs(); if (!cs) return; cs.then(function (c) { return c.keys().then(function (ks) { ks.forEach(function (r) { if (/\/__ccm\/f\//.test(r.url)) c.delete(r); }); }); }).catch(function () { }); }
+  };
+  /* Foto profil staf. Indeks dari auth.boot.foto_staf: [{u, p, n, f}] */
+  var Foto = {
+    u: {}, p: {}, n: {}, antre: {}, _t: null,
+    normal: function (s) { return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); },
+    indeks: function (daftar) {
+      var self = this; this.u = {}; this.p = {}; this.n = {};
+      (daftar || []).forEach(function (x) { if (!x || !x.f) return; self.u[x.u] = x.f; if (x.p) self.p[x.p] = x.f; if (x.n) self.n[self.normal(x.n)] = x.f; });
+      this.jadwalkan();
+    },
+    cari: function (ref, nama) {
+      if (!ref) return null; ref = String(ref);
+      if (ref.indexOf('u:') === 0) return this.u[ref.slice(2)] || null;
+      if (ref.indexOf('p:') === 0) return this.p[ref.slice(2)] || this.n[this.normal(nama)] || null;
+      return this.n[this.normal(nama)] || null;
+    },
+    /* Ganti foto akun sendiri di indeks (setelah unggah/hapus) lalu perbarui semua avatar yang tampil */
+    setel: function (me, ref) {
+      var self = this, lama = this.u[me.id];
+      if (ref) { this.u[me.id] = ref; if (me.perawat_id) this.p[me.perawat_id] = ref; this.n[this.normal(me.nama)] = ref; }
+      else { delete this.u[me.id]; if (me.perawat_id) delete this.p[me.perawat_id]; delete this.n[this.normal(me.nama)]; }
+      if (lama) qsa('.ava[data-foto="' + Media.kunci(lama) + '"]').forEach(function (a) { a.classList.remove('foto'); a.removeAttribute('data-foto'); a.textContent = U.inisial(a.getAttribute('title')); });
+      var sb = qs('.sb-user .ava'); if (sb) sb.outerHTML = UI.ava(me.nama, 'k', ref ? 'u:' + me.id : null);
+      if (Sesi.boot) { var arr = (Sesi.boot.foto_staf || []).filter(function (x) { return x.u !== me.id; }); if (ref) arr.push({ u: me.id, p: me.perawat_id || '', n: me.nama, f: ref }); Sesi.boot.foto_staf = arr; }
+      if (Sesi.me) Sesi.me.foto_url = ref || '';
+      this.jadwalkan();
+    },
+    /* Isi semua avatar berfoto yang belum bergambar; ambil yang belum ada (maks 30 per panggilan, tergabung) */
+    jadwalkan: function () { var self = this; if (this._t) return; this._t = setTimeout(function () { self._t = null; self.isi(); }, 30); },
+    isi: function () {
+      var self = this, perlu = {};
+      qsa('.ava[data-foto]:not(.foto)').forEach(function (a) {
+        var k = a.getAttribute('data-foto'), url = Media.url[k];
+        if (url) return self._pasang(a, url);
+        var ref = self._refDariKunci(k); if (ref) perlu[k] = ref;
+      });
+      Object.keys(perlu).forEach(function (k) { Media.ambil(perlu[k], 'foto').then(function (url) { if (url) qsa('.ava[data-foto="' + k + '"]:not(.foto)').forEach(function (a) { self._pasang(a, url); }); }); });
+    },
+    _pasang: function (a, url) { a.classList.add('foto'); a.innerHTML = '<img src="' + U.e(url) + '" alt="" decoding="async">'; },
+    _refDariKunci: function (k) { var semua = [this.u, this.p, this.n], i, j; for (i = 0; i < semua.length; i++) for (j in semua[i]) if (Media.kunci(semua[i][j]) === k) return semua[i][j]; return null; },
+    /* foto.ambil digabung: banyak ref dalam satu tik → satu panggilan */
+    _minta: function (ref) {
+      if (/^data:image\//.test(ref)) return Promise.resolve(ref);
+      var self = this; return new Promise(function (ok) {
+        (self.antre[ref] = self.antre[ref] || []).push(ok);
+        if (self._ta) return;
+        self._ta = setTimeout(function () {
+          var refs = Object.keys(self.antre), tunggu = self.antre; self.antre = {}; self._ta = null;
+          for (var i = 0; i < refs.length; i += 30) (function (pot) {
+            API.panggil('foto.ambil', { refs: pot }, { diam: true }).then(function (d) { pot.forEach(function (r) { (tunggu[r] || []).forEach(function (f) { f((d && d.foto || {})[r] || ''); }); }); }, function () { pot.forEach(function (r) { (tunggu[r] || []).forEach(function (f) { f(''); }); }); });
+          })(refs.slice(i, i + 30));
+        }, 20);
+      });
+    }
+  };
   var Tema = {
     font: {},
+    /* Pratinjau Tampilan & branding yang belum disimpan. Selama terisi, penyegaran latar (auth.boot) tidak menimpanya;
+       dibatalkan saat pindah dari Pengaturan → Tampilan & branding. */
+    pratinjau: null,
     terapkan: function (b) {
       if (!b) return; var r = D.documentElement.style, w = b.warna || {};
       if (w.merek) { var c = hexRgb(w.merek); r.setProperty('--merek', w.merek); r.setProperty('--merek-lembut', campur(w.merek, .9)); r.setProperty('--merek-glow', '0 0 15px rgba(' + c.join(',') + ',.35)'); r.setProperty('--cincin', '0 0 0 3px rgba(' + c.join(',') + ',.28)'); }
@@ -252,6 +364,19 @@
       if (b.ukuran_dasar) r.setProperty('--fs', Math.min(16, Math.max(13, Number(b.ukuran_dasar))) + 'px');
       var de = D.documentElement; de.dataset.radius = b.radius || 'besar'; de.dataset.kepadatan = b.kepadatan || 'nyaman'; de.dataset.animasi = b.animasi || 'normal';
       if (b.nama_aplikasi) D.title = b.nama_brand ? b.nama_brand + ' — ' + b.nama_aplikasi.replace(/^Capten Care\s*/, '') : b.nama_aplikasi;
+      if (b.favicon_url !== undefined) this.favicon(b.favicon_url);
+      if (b.logo_url !== undefined) {
+        var sahL = function (u) { return /^(data:image\/|assets\/|https:\/\/|blob:)/.test(u || '') ? u : ''; }, lg = sahL(b.logo_url), lgGelap = sahL(b.logo_gelap_url) || lg || 'assets/logo.svg';
+        try { if (lg && !/^blob:/.test(lg) && lg.length < 150000) localStorage.setItem('cc_logo', lg); else localStorage.removeItem('cc_logo'); } catch (e) { }
+        qsa('.sb-logo img').forEach(function (im) { if (im.getAttribute('src') !== lgGelap) im.setAttribute('src', lgGelap); });
+      }
+    },
+    /* Favicon dinamis dari Pengaturan (data URL / assets/ / https). Disimpan agar terpasang lebih awal pada kunjungan berikutnya. */
+    favicon: function (url) {
+      var sah = /^(data:image\/(png|jpeg|webp|svg\+xml|x-icon|vnd\.microsoft\.icon);base64,|assets\/|https:\/\/)/.test(url || ''), href = sah ? url : 'assets/icons/favicon.svg';
+      var l = D.querySelector('link[rel=icon]'); if (!l) { l = D.createElement('link'); l.rel = 'icon'; D.head.appendChild(l); }
+      if (l.getAttribute('href') !== href) { l.setAttribute('href', href); var m = href.match(/^data:([^;]+);/); l.setAttribute('type', m ? m[1] : /\.svg$/.test(href) ? 'image/svg+xml' : /\.png$/.test(href) ? 'image/png' : ''); }
+      try { if (sah && href.length < 120000) localStorage.setItem('cc_favicon', href); else localStorage.removeItem('cc_favicon'); } catch (e) { }
     },
     muatFont: function (nama) { if (!nama || /^(Plus Jakarta Sans|Inter|system-ui)$/.test(nama) || this.font[nama]) return; this.font[nama] = 1; var l = D.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(nama).replace(/%20/g, '+') + ':wght@400;500;600;700&display=swap'; D.head.appendChild(l); }
   };
@@ -272,7 +397,12 @@
     },
     galat: function (er, judul) { var m = er && er.message ? er.message : String(er); if (er && er.code === 'MODULE_OFF') judul = 'Fitur belum aktif'; if (er && er.code === 'FORBIDDEN') judul = 'Akses ditolak'; if (er && er.code === 'CONFLICT') judul = 'Tidak dapat diproses'; if (er && er.code === 'LOCKED') judul = 'Terkunci'; UI.toast(m, er && er.code === 'VALIDATION' ? 'warn' : 'bahaya', { judul: judul }); },
     lencana: function (s, kelas) { if (s == null || s === '') return '<span class="redup-2">—</span>'; return '<span class="lencana ' + (kelas || kelasStatus(s)) + '"><i></i>' + U.e(s) + '</span>'; },
-    ava: function (nama, k) { return '<span class="ava ' + (k || '') + '" data-w="' + U.warna(nama) + '" title="' + U.e(nama) + '">' + U.e(U.inisial(nama)) + '</span>'; },
+    /* ref (opsional, hanya untuk staf): 'u:<user_id>' | 'p:<perawat_id>' | 'n' (cari berdasarkan nama staf). Pasien/kontak luar: tanpa ref. */
+    ava: function (nama, k, ref) {
+      var f = ref ? Foto.cari(ref, nama) : null, url = f ? Media.siap(f) : '';
+      if (f && !url) Foto.jadwalkan();
+      return '<span class="ava ' + (k || '') + (url ? ' foto' : '') + '" data-w="' + U.warna(nama) + '" title="' + U.e(nama) + '"' + (f ? ' data-foto="' + U.e(Media.kunci(f)) + '"' : '') + '>' + (url ? '<img src="' + U.e(url) + '" alt="" decoding="async">' : U.e(U.inisial(nama))) + '</span>';
+    },
     kosong: function (judul, sub, aksi, gambar) { return '<div class="kosong">' + '<img src="assets/ilustrasi/' + (gambar || 'kosong') + '.svg" alt="" loading="lazy">' + '<b>' + U.e(judul || 'Belum ada data') + '</b>' + (sub ? '<p>' + U.e(sub) + '</p>' : '') + (aksi || '') + '</div>'; },
     kerangka: function (jenis) {
       if (jenis === 'tabel') return '<div class="kartu pad">' + [1, 2, 3, 4, 5, 6].map(function (i) { return '<div class="baris celah-12" style="padding:8px 0"><div class="kerangka" style="width:34px;height:34px;border-radius:50%"></div><div class="tumbuh"><div class="kerangka teks" style="width:' + (40 + i * 7 % 40) + '%"></div><div class="kerangka teks" style="width:' + (20 + i * 11 % 30) + '%"></div></div><div class="kerangka teks" style="width:80px"></div></div>'; }).join('') + '</div>';
@@ -692,6 +822,7 @@
       if (PUBLIK[r.id]) { Shell.hancurkan(); var wadahP = qs('#app'), tw = qs('#toast'); wadahP.innerHTML = ''; if (tw) tw.innerHTML = ''; Layar.sembunyikan(); return PUBLIK[r.id].render(wadahP, r.arg, r.q); }
       if (!Sesi.me) { if (r.id !== 'masuk') { Router._tujuan = location.hash; } Shell.hancurkan(); Layar.sembunyikan(); return Halaman.masuk.render(qs('#app'), r.arg, r.q); }
       if (!r.id || r.id === 'masuk') return this.ke('dashboard', true);
+      if (Tema.pratinjau && !(r.id === 'pengaturan' && r.q.tab === 'tampilan')) { Tema.pratinjau = null; Tema.terapkan(Sesi.boot.branding); }
       if (Sesi.me.wajib_ganti_pin && r.id !== 'profil') return this.ke('profil?wajib=1', true);
       Shell.pasang();
       var def = Halaman[r.id], menu = (Sesi.boot.menu || []).filter(function (m) { return m.id === r.id; })[0], bebas = def && def.bebas;
@@ -762,7 +893,7 @@
       // v2: banner kuning dihapus. Mode demo ditandai chip kecil "DEMO"; server terputus → chip merah "TERPUTUS".
       app.innerHTML = '<div class="app' + (ciut ? ' ciut' : '') + '" id="kerangka"><aside class="sidebar" aria-label="Navigasi utama"><div class="sb-kepala"><span class="sb-logo"><img src="' + U.e(br.logo_url || 'assets/logo.svg') + '" alt=""></span><div class="sb-brand"><b>' + U.e(br.nama_brand || 'Capten Care') + '</b><span>' + U.e(br.tagline || 'Integrated System') + '</span></div><button type="button" class="sb-ciut" data-ciut aria-label="Ciutkan menu" title="Ciutkan menu">' + ic('panel-left-close', 'k') + '</button></div>' +
         '<button type="button" class="sb-cari" data-palet>' + ic('search', 'k') + '<span>Cari apa saja…</span><kbd class="kbd">⌘K</kbd></button><nav class="sb-nav" id="sb-nav"></nav>' +
-        '<div class="sb-kaki"><div class="sb-user" data-akun>' + UI.ava(me.nama, 'k') + '<div class="tumpuk" style="gap:0"><b class="potong">' + U.e(me.nama) + '</b><span>' + U.e(me.peran_label) + '</span></div>' + ic('chevrons-up-down', 'k') + '</div></div></aside>' +
+        '<div class="sb-kaki"><div class="sb-user" data-akun>' + UI.ava(me.nama, 'k', 'u:' + me.id) + '<div class="tumpuk" style="gap:0"><b class="potong">' + U.e(me.nama) + '</b><span>' + U.e(me.peran_label) + '</span></div>' + ic('chevrons-up-down', 'k') + '</div></div></aside>' +
         '<div class="utama"><header class="topbar"><button type="button" class="btn ikon hantu tb-menu" data-menu-hp aria-label="Buka menu">' + ic('menu') + '</button><nav class="remah" aria-label="Breadcrumb" id="remah"></nav><div class="tb-aksi">' +
         '<button type="button" class="tb-cari" data-palet aria-label="Cari">' + ic('search', 'k') + '<span class="teks">Cari pasien, perawat, invoice…</span><kbd class="kbd">⌘K</kbd></button>' +
         '<a class="gauge" id="gauge" href="#/laporan" hidden aria-label="Kepatuhan operasional"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="jalur" cx="18" cy="18" r="15"/><circle class="busur" cx="18" cy="18" r="15"/></svg><span class="g-teks"><span class="g-lbl"><i></i><span data-g-lbl>Kepatuhan Operasional</span></span><b data-g-nilai>—</b></span></a>' +
@@ -812,7 +943,7 @@
       r.innerHTML = '<ol>' + item.join('') + '</ol>';
     },
     isiKosong: function (judul, pesan, ikon) { this.pasang(); var isi = qs('#isi'); isi.innerHTML = '<div class="kartu pad masuk" style="max-width:560px;margin:40px auto">' + UI.kosong(judul, pesan, '<a class="btn primer kecil mt-8" href="#/dashboard">' + ic('layout-dashboard') + 'Kembali ke Dashboard</a>') + '</div>'; },
-    segarkanLencana: U.debounce(function () { if (!Sesi.me) return; API.panggil('auth.boot', {}, { diam: true }).then(function (b) { var lama = JSON.stringify([Sesi.boot.menu, Sesi.boot.badge, Sesi.boot.modul]); Sesi.boot = b; Sesi.me = b.me; Tema.terapkan(b.branding); if (lama !== JSON.stringify([b.menu, b.badge, b.modul])) Shell.gambarMenu(); Shell.setNotif(b.notif_belum); Shell.muatGauge(); }).catch(function () { }); }, 700),
+    segarkanLencana: U.debounce(function () { if (!Sesi.me) return; API.panggil('auth.boot', {}, { diam: true }).then(function (b) { var lama = JSON.stringify([Sesi.boot.menu, Sesi.boot.badge, Sesi.boot.modul]); Sesi.boot = b; Sesi.me = b.me; Foto.indeks(b.foto_staf); Tema.terapkan(Tema.pratinjau || b.branding); if (lama !== JSON.stringify([b.menu, b.badge, b.modul])) Shell.gambarMenu(); Shell.setNotif(b.notif_belum); Shell.muatGauge(); }).catch(function () { }); }, 700),
     setNotif: function (n) { var el = qs('#jml-notif'); if (!el) return; el.hidden = !n; el.textContent = n > 99 ? '99+' : n; },
     statusKoneksi: function () { var c = qs('#mode-chip'); if (!c) return; c.classList.toggle('putus', !!API.putus); var l = qs('.lbl', c); if (l) l.textContent = API.putus ? 'TERPUTUS' : API.mode === 'demo' ? 'DEMO' : 'LIVE'; c.title = API.putus ? 'Server tidak terjangkau — klik untuk detail' : API.mode === 'demo' ? 'Mode demo: data contoh di peramban ini' : 'Terhubung ke server'; },
     pasangEvent: function () {
@@ -844,7 +975,7 @@
         if (boleh) Router.tampilkan(); else Router.ke('dashboard');
       }, function (er) { sel.disabled = false; isi.classList.remove('memuat-ulang'); UI.galat(er); });
     },
-    menuAkun: function (t) { var me = Sesi.me; UI.pop(t, [{ l: me.nama + ' · ' + me.username, i: 'user-round', fn: function () { Router.ke('profil'); } }, { l: 'Profil & ganti PIN', i: 'key-round', fn: function () { Router.ke('profil'); } }, { l: 'Pintasan keyboard', i: 'keyboard', fn: Pintasan.tampil }, { l: 'Bantuan & SOP', i: 'life-buoy', fn: function () { Router.ke('bantuan'); } }, '-', { l: 'Keluar', i: 'log-out', bahaya: true, fn: function () { Sesi.keluar(); } }]); },
+    menuAkun: function (t) { var me = Sesi.me; UI.pop(t, [{ l: me.nama + ' · ' + me.username, i: 'user-round', fn: function () { Router.ke('profil'); } }, { l: 'Profil, foto & PIN', i: 'key-round', fn: function () { Router.ke('profil'); } }, { l: 'Pintasan keyboard', i: 'keyboard', fn: Pintasan.tampil }, { l: 'Bantuan & SOP', i: 'life-buoy', fn: function () { Router.ke('bantuan'); } }, '-', { l: 'Keluar', i: 'log-out', bahaya: true, fn: function () { Sesi.keluar(); } }]); },
     infoKoneksi: function (t) {
       var panel = API.putus ? '<div class="panel-bahaya mb-12">' + ic('wifi-off', 'k') + '<div><b>Server tidak terjangkau.</b> ' + (API.mode === 'demo' ? 'Aplikasi sementara berjalan dalam mode demo dengan data contoh di peramban ini — data asli tidak berubah.' : 'Perubahan tidak dapat disimpan sampai koneksi pulih.') + '</div></div>' : API.mode === 'demo' ? '<div class="panel-info mb-12">' + ic('flask-conical', 'k') + '<div><b>Mode demo.</b> Data contoh tersimpan di peramban ini. Ubah <code>USE_MOCK</code> di <code>js/config.js</code> untuk terhubung ke server.</div></div>' : '';
       var isi = panel + '<div class="info-grid"><div><dt>Mode</dt><dd>' + (API.mode === 'demo' ? 'Demo (data di peramban)' : 'Live — Apps Script') + '</dd></div><div><dt>Status</dt><dd>' + (API.putus ? '<span class="bahaya-t">Terputus</span>' : '<span class="ok-t">Terhubung</span>') + '</dd></div><div><dt>Waktu server terakhir</dt><dd>' + API.lastMs + ' ms</dd></div><div><dt>Versi</dt><dd>Aplikasi v' + VERSI + (API.versiServer ? ' · server v' + U.e(API.versiServer) : '') + '</dd></div><div class="penuh"><dt>Cache peramban</dt><dd>' + Object.keys(Data.c).length + ' set data · otomatis disegarkan setiap 30 detik saat dibuka</dd></div></div>';
@@ -951,6 +1082,8 @@
   function beralihDemo() { API.mode = 'demo'; API.putus = true; Sesi.hapus(); return API.muatDemo().then(function () { setTimeout(function () { UI.toast('Server tidak terjangkau. Aplikasi beralih ke mode demo; data asli tidak tersentuh.', 'warn', { judul: 'Mode demo otomatis', durasi: 8000 }); }, 600); return null; }); }
   if ('serviceWorker' in navigator && location.protocol === 'https:') W.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () { }); });
 
-  W.CCApp = { U: U, ic: ic, qs: qs, qsa: qsa, API: API, Data: Data, Q: Q, T: T, Sesi: Sesi, UI: UI, G: G, Kal: Kal, Gantt: Gantt, Router: Router, Shell: Shell, Tema: Tema, Layar: Layar, htmlPemuat: htmlPemuat, kelasStatus: kelasStatus, PERAN_DEMO: PERAN_DEMO, VERSI: VERSI, beralihDemo: beralihDemo, ruteEvent: ruteEvent, CFG: CFG, Muat: Muat };
+  try { var fvAwal = localStorage.getItem('cc_favicon'); if (fvAwal) Tema.favicon(fvAwal); } catch (e) { }
+  try { var lgAwal = localStorage.getItem('cc_logo'), imAwal = D.querySelector('#layar-awal .inti img'); if (lgAwal && imAwal) imAwal.src = lgAwal; } catch (e) { }
+  W.CCApp = { Media: Media, Foto: Foto, U: U, ic: ic, qs: qs, qsa: qsa, API: API, Data: Data, Q: Q, T: T, Sesi: Sesi, UI: UI, G: G, Kal: Kal, Gantt: Gantt, Router: Router, Shell: Shell, Tema: Tema, Layar: Layar, htmlPemuat: htmlPemuat, kelasStatus: kelasStatus, PERAN_DEMO: PERAN_DEMO, VERSI: VERSI, beralihDemo: beralihDemo, ruteEvent: ruteEvent, CFG: CFG, Muat: Muat };
   if (D.readyState === 'complete') setTimeout(mulai, 0); else D.addEventListener('DOMContentLoaded', function () { setTimeout(mulai, 0); });
 })(window, document);

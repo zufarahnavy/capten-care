@@ -101,7 +101,7 @@ CC.cekPlaceholder = function (jenis, blok) { var izin = CC.PH_UMUM.concat(CC.PH[
 /* ---------- Render blok → HTML siap cetak/PDF ---------- */
 CC.renderDokumen = function (blok, hal, d, opsi) {
   opsi = opsi || {}; hal = Object.assign({}, CC.HALAMAN_AWAL, hal || {});
-  var prof = CC.set('profil'), br = CC.set('branding'), e = CC.esc, f = function (t) { return e(CC.isiPlaceholder(t, d)); };
+  var prof = CC.set('profil'), br = CC.brandingSiap ? CC.brandingSiap(CC.set('branding')) : CC.set('branding'), e = CC.esc, f = function (t) { return e(CC.isiPlaceholder(t, d)); };
   var css = '@page{size:' + (hal.ukuran === 'F4' ? '215mm 330mm' : hal.ukuran === 'Letter' ? 'letter' : 'A4') + (hal.orientasi === 'lanskap' ? ' landscape' : '') + ';margin:' + Number(hal.margin) + 'mm}' +
     '.dok{font-family:' + e(hal.font) + ',Arial,sans-serif;font-size:' + Number(hal.ukuran_font) + 'pt;line-height:' + Number(hal.spasi) + ';color:#111;position:relative}' +
     '.dok .kop{display:flex;align-items:center;gap:14px;border-bottom:2.5px solid #0B132B;padding-bottom:10px;margin-bottom:16px}.dok .kop img{width:56px;height:56px;object-fit:contain}.dok .kop b{font-size:1.25em;letter-spacing:.02em}.dok .kop small{display:block;color:#475569;font-size:.78em;line-height:1.4}' +
@@ -291,7 +291,7 @@ CC.A['publik.verifikasi'] = {
 
 /* ---------- HTML invoice (mengikuti lembar "INVOICE ASLI") ---------- */
 CC.htmlInvoice = function (i, opsi) {
-  opsi = opsi || {}; var e = CC.esc, rp = CC.u.rupiah, br = CC.set('branding');
+  opsi = opsi || {}; var e = CC.esc, rp = CC.u.rupiah, br = CC.brandingSiap ? CC.brandingSiap(CC.set('branding')) : CC.set('branding');   // logo drive: → data URL
   var judul = i.varian === 'DP' ? 'INVOICE DP' : i.varian === 'Infal' ? 'INVOICE INFAL' : 'INVOICE';
   var dp = CC.u.angka(i.so && i.so.dp), url = (br.app_url || '') + '#/v/' + i.kode_verifikasi;
   var qr = opsi.qr || (CC.env.qr ? CC.env.qr(url) : '');

@@ -576,8 +576,11 @@ CC.A['analitik.penjualan'] = {
 };
 
 /* ===================== PENGATURAN, BRANDING, MODUL (US-49, US-54, US-55, US-59) ===================== */
-CC.KUNCI_SET = ['shift', 'operasional', 'master', 'profil', 'penomoran', 'modul', 'branding', 'notif', 'format_laporan', 'format_idf', 'gaji', 'penilaian', 'mess'];
+CC.KUNCI_SET = ['shift', 'operasional', 'master', 'profil', 'penomoran', 'modul', 'branding', 'notif', 'format_laporan', 'format_idf', 'gaji', 'penilaian', 'mess', 'login'];
 CC.FONT_IZIN = ['Plus Jakarta Sans', 'Inter', 'Manrope', 'DM Sans', 'IBM Plex Sans', 'Source Sans 3', 'Nunito Sans', 'Public Sans'];
+CC.ASET_BRAND = ['logo_url', 'logo_gelap_url', 'gambar_login_url', 'favicon_url'];
+/* drive:<id> = berkas di folder Aset_Brand (hasil aset.unggah), disajikan sebagai data URL oleh server */
+CC.urlGambarSah = function (u) { return /^drive:[A-Za-z0-9_-]{10,}$/.test(u) || /^(https:\/\/|assets\/|data:image\/(png|jpeg|webp|svg\+xml);base64,)/.test(u); };
 CC.validasiBranding = function (b) {
   var hex = /^#[0-9A-Fa-f]{6}$/, bersih = function (s) { return String(s == null ? '' : s).replace(/[<>]/g, '').slice(0, 200); };
   Object.keys(b.warna || {}).forEach(function (k) { if (!hex.test(b.warna[k])) CC.galat('VALIDATION', 'Warna "' + k + '" harus format #RRGGBB.', { warna: 'Format #RRGGBB' }); });
@@ -585,13 +588,45 @@ CC.validasiBranding = function (b) {
   if (b.font_isi && CC.FONT_IZIN.indexOf(b.font_isi) === -1) CC.galat('VALIDATION', 'Font isi tidak tersedia.');
   ['nama_aplikasi', 'nama_brand', 'nama_perusahaan', 'tagline', 'footer'].forEach(function (k) { if (b[k] !== undefined) b[k] = bersih(b[k]); });
   if (b.app_url && !/^(https:\/\/[^\s<>"']+|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/[^\s<>"']*)$/.test(b.app_url)) CC.galat('VALIDATION', 'Alamat aplikasi harus diawali https:// (http://localhost hanya untuk uji lokal).', { app_url: 'https://…' });
-  ['logo_url', 'logo_gelap_url', 'gambar_login_url'].forEach(function (k) { if (b[k] && !/^(https:\/\/|assets\/|data:image\/(png|jpeg|webp|svg\+xml);base64,)/.test(b[k])) CC.galat('VALIDATION', 'Alamat gambar tidak diizinkan.'); if (b[k] && b[k].length > 600000) CC.galat('VALIDATION', 'Gambar terlalu besar (maks ±400 KB).'); });
+  CC.ASET_BRAND.forEach(function (k) { if (b[k] && !CC.urlGambarSah(b[k])) CC.galat('VALIDATION', 'Alamat gambar tidak diizinkan.'); if (b[k] && b[k].length > 700000) CC.galat('VALIDATION', 'Gambar terlalu besar (maks ±500 KB).'); });
   if (b.teks) Object.keys(b.teks).forEach(function (k) { b.teks[k] = bersih(b.teks[k]); });
   b.ukuran_dasar = Math.min(16, Math.max(13, Number(b.ukuran_dasar || 14)));
   if (['kecil', 'sedang', 'besar'].indexOf(b.radius) === -1) b.radius = 'besar';
   if (['nyaman', 'ringkas'].indexOf(b.kepadatan) === -1) b.kepadatan = 'nyaman';
   if (['normal', 'dikurangi', 'mati'].indexOf(b.animasi) === -1) b.animasi = 'normal';
   return b;
+};
+/* Normalisasi + validasi pengaturan halaman masuk. ketat=true saat disimpan (galat bila alamat gambar tidak sah). */
+CC.loginSiap = function (v, ketat) {
+  var B = CC.BAWAAN.login, o = CC.u.json(v, {}) || {}, t = function (s, n) { return String(s == null ? '' : s).replace(/[<>]/g, '').trim().slice(0, n || 120); };
+  var angka = function (x, min, maks, bawaan) { x = Number(x); return isNaN(x) ? bawaan : Math.min(maks, Math.max(min, Math.round(x))); };
+  var ya = function (x, bawaan) { return x === undefined || x === null || x === '' ? bawaan : x === true || x === 'true' || x === 'YA' || x === 1; };
+  var s = Object.assign({}, B.slide, o.slide || {}), k = Object.assign({}, B.kartu, o.kartu || {});
+  var slide = {
+    aktif: ya(s.aktif, true), durasi: angka(s.durasi, 3, 30, 6), kecepatan: angka(s.kecepatan, 300, 3000, 1200), gelap: angka(s.gelap, 30, 90, 64),
+    transisi: ['pudar', 'geser', 'zoom'].indexOf(s.transisi) > -1 ? s.transisi : 'pudar', acak: ya(s.acak, false), titik: ya(s.titik, true), keterangan: ya(s.keterangan, true), jeda_hover: ya(s.jeda_hover, true),
+    daftar: (Array.isArray(s.daftar) ? s.daftar : []).slice(0, 8).map(function (x, i) {
+      var url = String(x && x.url || '');
+      if (!CC.urlGambarSah(url)) { if (ketat) CC.galat('VALIDATION', 'Alamat gambar slide ' + (i + 1) + ' tidak diizinkan.'); return null; }
+      if (url.length > 700000) CC.galat('VALIDATION', 'Gambar slide ' + (i + 1) + ' terlalu besar (maks ±500 KB).');
+      return { id: t(x.id || ('s' + (i + 1)), 24), url: url, judul: t(x.judul, 80), teks: t(x.teks, 140) };
+    }).filter(Boolean)
+  };
+  var blok = Object.assign({}, B.kartu.blok, k.blok || {});
+  var kartu = {
+    aktif: ya(k.aktif, true), judul: t(k.judul, 40) || 'LIVE · PENUGASAN AKTIF', putar: Number(k.putar) === 0 ? 0 : angka(k.putar, 4, 30, 9), miring: ya(k.miring, true),
+    blok: { perawat: ya(blok.perawat, true), ttv: ya(blok.ttv, true), lini: ya(blok.lini, true), progres: ya(blok.progres, true) },
+    skenario: (Array.isArray(k.skenario) ? k.skenario : []).slice(0, 5).map(function (x, i) {
+      var maks = angka(x.progres_maks, 1, 20, 8);
+      return {
+        id: t(x.id || ('sk' + (i + 1)), 24), label: t(x.label, 32) || ('Skenario ' + (i + 1)), pasien: t(x.pasien, 60), info: t(x.info, 90), status: t(x.status, 32), perawat: t(x.perawat, 60), perawat_info: t(x.perawat_info, 60),
+        ttv: (Array.isArray(x.ttv) ? x.ttv : []).slice(0, 4).map(function (v) { return { k: t(v.k, 12), v: t(v.v, 12), tren: t(v.tren, 160) }; }).filter(function (v) { return v.k; }),
+        lini: (Array.isArray(x.lini) ? x.lini : []).slice(0, 5).map(function (l) { return { jam: t(l.jam, 5), judul: t(l.judul, 50), teks: t(l.teks, 80), detail: t(l.detail, 200), status: ['ok', 'jalan', 'tunda'].indexOf(l.status) > -1 ? l.status : 'ok', progres: angka(l.progres, 0, maks, 0) }; }).filter(function (l) { return l.judul; }),
+        progres_label: t(x.progres_label, 30) || 'Laporan A–H', progres: angka(x.progres, 0, maks, 0), progres_maks: maks
+      };
+    }).filter(function (x) { return x.pasien; })
+  };
+  return { slide: slide, kartu: kartu };
 };
 CC.A['pengaturan.ambil'] = {
   roles: ['ADM', 'KEU'],
@@ -603,6 +638,8 @@ CC.A['pengaturan.ambil'] = {
     var out = { kunci: p.kunci, nilai: nilai, riwayat: riw, tersimpan: riw.length > 0 };
     if (p.kunci === 'gaji') { out.usulan = CC.GAJI_USULAN; out.paket = CC.aktifSaja(CC.semua(CC.T.PAKET)).map(function (x) { return { id: x.id, nama: x.nama_paket, aktif: x.aktif }; }); }
     if (p.kunci === 'penomoran') out.terakhir = CC.semua(CC.T.NOMOR);
+    if (p.kunci === 'branding') out.tampil = CC.brandingSiap(nilai);
+    if (p.kunci === 'login') { out.nilai = CC.loginSiap(nilai); out.bawaan = CC.loginSiap(CC.BAWAAN.login); }
     return out;
   }
 };
@@ -614,6 +651,7 @@ CC.A['pengaturan.simpan'] = {
     var v = p.nilai;
     if (p.kunci === 'master' && ctx.peran === 'KEU') { var lama = CC.set('master'); ['bank', 'kategori_pc', 'kategori_jurnal'].forEach(function (k) { if (v[k]) lama[k] = v[k]; }); v = lama; }
     if (p.kunci === 'branding') v = CC.validasiBranding(Object.assign(CC.set('branding'), v));
+    if (p.kunci === 'login') v = CC.loginSiap(v, true);
     if (p.kunci === 'gaji') { if (!String(p.alasan || '').trim()) CC.galat('VALIDATION', 'Alasan perubahan Pengaturan Gaji wajib diisi.', { alasan: 'Wajib' }); ['pembagi', 'tarif_harian_pendek', 'batas_hari_pendek', 'jatah_libur', 'potongan_libur', 'tarif_lembur_klien', 'biaya_admin', 'masa_admin_bulan'].forEach(function (k) { if (v[k] !== '' && v[k] !== undefined && (isNaN(Number(v[k])) || Number(v[k]) < 0)) CC.galat('VALIDATION', 'Nilai "' + k.replace(/_/g, ' ') + '" harus angka ≥ 0.', {}); }); if (Number(v.pembagi) === 0) CC.galat('VALIDATION', 'Pembagi fee harian tidak boleh 0.'); }
     if (p.kunci === 'notif') { var lamaN = CC.set('notif'); v = Object.assign(lamaN, v); if (v.wa_aktif && CC.env.rahasiaAda && !CC.env.rahasiaAda('FONNTE_TOKEN') && CC.env.mode !== 'demo') CC.galat('VALIDATION', 'Isi token penyedia WhatsApp sebelum mengaktifkan notifikasi WA.'); if ([10, 20, 50].indexOf(Number(v.batch)) === -1) v.batch = 20; if (!/^\d{1,3}(-\d{1,3})?$/.test(String(v.jeda))) CC.galat('VALIDATION', 'Jeda harus angka (mis. 5) atau rentang (mis. 3-8).'); }
     if (p.kunci === 'penomoran') Object.keys(v).forEach(function (k) { if (!/\{N+\}/.test(v[k].pola)) CC.galat('VALIDATION', 'Pola ' + k + ' harus memuat {NNNN} (nomor urut).'); });
@@ -936,7 +974,7 @@ CC.A['aset.unggah'] = {
     return r;
   }
 };
-CC.brandingSiap = function (b) { b = Object.assign({}, b); ['logo_url', 'logo_gelap_url', 'gambar_login_url'].forEach(function (k) { if (/^drive:/.test(b[k] || '') && CC.env.ambilAsetPublik) b[k] = CC.env.ambilAsetPublik(b[k]); }); return b; };
+CC.brandingSiap = function (b) { b = Object.assign({}, b); CC.ASET_BRAND.forEach(function (k) { if (/^drive:/.test(b[k] || '') && CC.env.ambilAsetPublik) b[k] = CC.env.ambilAsetPublik(b[k]); }); return b; };
 CC._pascaMuat = CC._pascaMuat || []; CC._pascaMuat.push(function () { var tema = CC.A['publik.tema'].fn, boot = CC.A['auth.boot'].fn; CC.A['publik.tema'].fn = function (ctx, p) { var r = tema(ctx, p); r.branding = CC.brandingSiap(r.branding); return r; }; CC.A['auth.boot'].fn = function (ctx, p) { var r = boot(ctx, p); r.branding = CC.brandingSiap(r.branding); return r; }; });
 
 /* Penutupan periode gaji otomatis (Bagian 4.6): tanggal 1–2 → draf penggajian bulan lalu */

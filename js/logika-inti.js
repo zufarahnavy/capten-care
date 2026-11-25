@@ -10,7 +10,7 @@
  * Tidak ada rahasia di berkas ini (rahasia hanya di Script Properties).
  * ===================================================================== */
 var CC = (typeof CC !== 'undefined' && CC) || {};
-CC.VERSI = '1.0.0';
+CC.VERSI = '1.1.0';
 CC.A = CC.A || {};          // registry aksi API: CC.A['nama.aksi'] = { roles, tulis, fn }
 CC.env = CC.env || null;    // diisi host: Kode.gs (GAS) atau js/demo.js (peramban)
 
@@ -32,7 +32,7 @@ CC.STD = ['id', 'dibuat_pada', 'dibuat_oleh', 'diubah_pada', 'diubah_oleh', 'sta
 CC.SKEMA = (function (T) {
   function k(s) { return s.split(/\s+/).filter(Boolean); }
   var S = {};
-  S[T.USER] = { p: 'USR', d: 3, al: 'user_id', k: k('username pin_hash salt nama role sub_role perawat_id status_akun no_wa email percobaan_gagal terkunci_sampai terakhir_login wajib_ganti_pin rev_sesi') };
+  S[T.USER] = { p: 'USR', d: 3, al: 'user_id', k: k('username pin_hash salt nama role sub_role perawat_id status_akun no_wa email percobaan_gagal terkunci_sampai terakhir_login wajib_ganti_pin rev_sesi foto_url') };
   S[T.PHC] = { p: 'PHC', d: 3, al: 'perawat_id', k: k('user_id nama jabatan pendidikan no_str str_berlaku jenis_kelamin tgl_lahir no_wa email domisili wilayah alamat_ktp nik bank_ewallet no_rekening nama_pemilik_rekening status tanggal_mulai akhir_kontrak masa_training_sampai hasil_training kompetensi status_siaga catatan status_wa cek_wa_at') };
   S[T.PHV] = { p: 'PHV', d: 3, al: 'perawat_hv_id', k: k('user_id nama jabatan jenis_kelamin no_wa email alamat_ktp nik bank_ewallet no_rekening nama_pemilik_rekening kompetensi_tindakan status jadwal_kunjungan akhir_kontrak status_wa cek_wa_at') };
   S[T.PASIEN] = { p: 'PSN', d: 4, al: 'pasien_id', k: k('nama_pasien jenis_kelamin tgl_lahir alamat wilayah diagnosa keluhan jenis_layanan paket_id nama_pj relasi_pj nik_pj alamat_pj no_telp_pj no_wa_pj email_pj persetujuan_data status status_klien perawat_id penerima_laporan sumber_lead info_klinis status_wa cek_wa_at') };
@@ -241,7 +241,7 @@ CC.BAWAAN = Object.assign(CC.BAWAAN || {}, {
   modul: { penilaian: false, kunjungan: false, mess: false, penalti: false, pc_perawat: false },
   branding: {
     nama_aplikasi: 'Capten Care Integrated Management System', nama_brand: 'Capten Care', nama_perusahaan: 'PT. Nusantara Insan Sakti',
-    tagline: 'Integrated System', footer: '© PT. Nusantara Insan Sakti', logo_url: '', logo_gelap_url: '', gambar_login_url: '',
+    tagline: 'Integrated System', footer: '© PT. Nusantara Insan Sakti', logo_url: '', logo_gelap_url: '', gambar_login_url: '', favicon_url: '',
     preset: 'cyan', warna: { merek: '#00C2FF', gelap: '#0B132B', aksen: '#0284C7', latar: '#F8FAFC', kartu: '#FFFFFF' },
     font_judul: 'Plus Jakarta Sans', font_isi: 'Inter', ukuran_dasar: 14, radius: 'besar', kepadatan: 'nyaman', animasi: 'normal', kpi_utama: 'gelap',
     teks: {}, menu_sembunyi: {}
@@ -255,7 +255,41 @@ CC.BAWAAN = Object.assign(CC.BAWAAN || {}, {
     E: ['Memeriksa kondisi selang NGT', 'Memberikan nutrisi melalui NGT', 'Memberikan obat melalui NGT', 'Memeriksa kondisi kateter', 'Mengukur dan mencatat urine', 'Membersihkan area kateter', 'Memeriksa kondisi trakeostomi', 'Memeriksa kondisi infus', 'Melakukan perawatan luka', 'Memeriksa alat medis lainnya'],
     wajib: ['tensi', 'nadi', 'suhu', 'spo2', 'kondisi_pasien', 'bab', 'bak', 'makan_pagi', 'makan_siang', 'makan_malam']
   },
-  format_idf: { wajib: ['kondisi_umum', 'tindakan_dasar', 'tindakan_kdm', 'kegiatan_pagi', 'kegiatan_siang', 'kegiatan_sore', 'kegiatan_malam'] }
+  format_idf: { wajib: ['kondisi_umum', 'tindakan_dasar', 'tindakan_kdm', 'kegiatan_pagi', 'kegiatan_siang', 'kegiatan_sore', 'kegiatan_malam'] },
+  /* Halaman masuk (publik): slideshow latar + kartu ilustrasi interaktif. Kartu SELALU fiktif (diisi Admin). */
+  login: {
+    slide: {
+      aktif: true, durasi: 6, transisi: 'pudar', kecepatan: 1200, gelap: 64, acak: false, titik: true, keterangan: true, jeda_hover: true,
+      daftar: [
+        { id: 'contoh1', url: 'assets/login/contoh-1.jpg', judul: 'Pendampingan perawat di rumah', teks: 'Penugasan, rotasi, dan laporan harian dalam satu portal.' },
+        { id: 'contoh2', url: 'assets/login/contoh-2.jpg', judul: 'Laporan harian terstandar A–H', teks: 'Diteruskan ke keluarga dan koordinator setelah dikirim.' },
+        { id: 'contoh3', url: 'assets/login/contoh-3.jpg', judul: 'Home visit dengan consent digital', teks: 'Checklist tindakan dan foto dokumentasi tersimpan rapi.' }
+      ]
+    },
+    kartu: {
+      aktif: true, judul: 'LIVE · PENUGASAN AKTIF', putar: 9, miring: true, blok: { perawat: true, ttv: true, lini: true, progres: true },
+      skenario: [
+        { id: 'sk1', label: 'Home Care VIP', pasien: 'Ny. Kartini Wulandari', info: '74 th · Pasca stroke iskemik · Paket VIP', status: 'Home Care Aktif', perawat: 'Ns. Dewi Anggraini, S.Kep', perawat_info: 'Shift Pagi · hari ke-12/30',
+          ttv: [{ k: 'Tensi', v: '128/82', tren: '136/88; 133/86; 131/84; 130/83; 128/82' }, { k: 'Nadi', v: '78', tren: '86; 84; 81; 80; 78' }, { k: 'Suhu', v: '36,6°', tren: '37,2; 37,0; 36,8; 36,7; 36,6' }, { k: 'SpO₂', v: '98%', tren: '95; 96; 97; 97; 98' }],
+          lini: [{ jam: '07.42', judul: 'Laporan shift malam', teks: 'terkirim ke keluarga via WhatsApp', detail: 'Ringkasan laporan A–H shift malam diteruskan ke penanggung jawab keluarga.', status: 'ok', progres: 2 },
+            { jam: '09.15', judul: 'Obat pagi', teks: 'diberikan sesuai jadwal', detail: 'Bagian D (obat) dicentang lengkap dengan jam pemberian.', status: 'ok', progres: 4 },
+            { jam: '11.30', judul: 'Alih baring & ROM pasif', teks: 'sedang berlangsung', detail: 'Bagian B (ADL) diisi setelah tindakan selesai.', status: 'jalan', progres: 6 }],
+          progres_label: 'Laporan A–H', progres: 6, progres_maks: 8 },
+        { id: 'sk2', label: 'Home Care Intensif', pasien: 'Tn. Bambang Sutrisno', info: '68 th · Diabetes melitus tipe 2 · Paket Intensif', status: 'Home Care Aktif', perawat: 'Ns. Rizky Pratama, S.Kep', perawat_info: 'Shift Malam · hari ke-5/14',
+          ttv: [{ k: 'Tensi', v: '142/90', tren: '150/94; 148/92; 145/91; 142/90' }, { k: 'Nadi', v: '84', tren: '90; 88; 86; 84' }, { k: 'Suhu', v: '36,8°', tren: '36,9; 36,8; 36,9; 36,8' }, { k: 'SpO₂', v: '97%', tren: '96; 97; 97; 97' }],
+          lini: [{ jam: '19.10', judul: 'Cek gula darah', teks: 'sebelum makan malam', detail: 'Hasil pemeriksaan dicatat bersama TTV di bagian C.', status: 'ok', progres: 3 },
+            { jam: '20.30', judul: 'Insulin malam', teks: 'diberikan sesuai resep', detail: 'Bagian D: dosis dan jam pemberian tercatat.', status: 'ok', progres: 5 },
+            { jam: '22.00', judul: 'Perawatan kaki', teks: 'dijadwalkan', detail: 'Pemeriksaan kaki dicatat di bagian G (kondisi).', status: 'jalan', progres: 6 }],
+          progres_label: 'Laporan A–H', progres: 5, progres_maks: 8 },
+        { id: 'sk3', label: 'Home Visit', pasien: 'Ny. Sri Lestari', info: '59 th · Luka pasca operasi · Home Visit', status: 'Kunjungan Berjalan', perawat: 'Ns. Andi Saputra, S.Kep', perawat_info: 'Kunjungan 10.00 · Perawatan luka',
+          ttv: [{ k: 'Tensi', v: '118/76', tren: '122/80; 120/78; 118/76' }, { k: 'Nadi', v: '76', tren: '80; 78; 76' }, { k: 'Suhu', v: '36,5°', tren: '36,7; 36,6; 36,5' }, { k: 'SpO₂', v: '99%', tren: '98; 99; 99' }],
+          lini: [{ jam: '09.40', judul: 'Informed consent', teks: 'ditandatangani keluarga', detail: 'Lembar tindakan terbuka setelah consent digital disetujui.', status: 'ok', progres: 2 },
+            { jam: '10.05', judul: 'Foto sebelum tindakan', teks: 'terunggah', detail: 'Foto sebelum dan sesudah wajib untuk menyelesaikan kunjungan.', status: 'ok', progres: 4 },
+            { jam: '10.20', judul: 'Ganti balutan luka', teks: 'sedang berlangsung', detail: 'Checklist tindakan dicentang per langkah.', status: 'jalan', progres: 6 }],
+          progres_label: 'Checklist tindakan', progres: 6, progres_maks: 8 }
+      ]
+    }
+  }
 });
 CC.GAJI_USULAN = {
   pembagi: 30, gaji_paket: { 'PKT-01': 3600000, 'PKT-02': 4000000, 'PKT-03': 4600000, 'PKT-04': 5200000 }, tarif_harian_pendek: 150000, batas_hari_pendek: 30,
@@ -335,8 +369,10 @@ CC.verifikasiToken = function (token, ctx) {
   if (ctx && now - isi.i > 30 * 60000) ctx.tokenBaru = CC.buatToken(u);   // sesi bergeser: 12 jam sejak aktivitas terakhir
   return u;
 };
+/* Referensi foto profil: hanya drive:<id> (server) atau data:image (mode demo). Selain itu diabaikan. */
+CC.refFoto = function (v) { v = String(v || ''); return /^drive:[A-Za-z0-9_-]{10,}$/.test(v) || /^data:image\/(png|jpeg|webp);base64,/.test(v) ? v : ''; };
 CC.profilAman = function (u) {
-  var p = { id: u.id, username: u.username, nama: u.nama, role: u.role, sub_role: u.sub_role, peran: CC.peranEfektif(u), peran_label: CC.PERAN[CC.peranEfektif(u)], perawat_id: u.perawat_id, no_wa: u.no_wa, email: u.email, wajib_ganti_pin: u.wajib_ganti_pin === true || u.wajib_ganti_pin === 'TRUE' || u.wajib_ganti_pin === 'YA' };
+  var p = { id: u.id, username: u.username, nama: u.nama, role: u.role, sub_role: u.sub_role, peran: CC.peranEfektif(u), peran_label: CC.PERAN[CC.peranEfektif(u)], perawat_id: u.perawat_id, no_wa: u.no_wa, email: u.email, foto_url: CC.refFoto(u.foto_url), wajib_ganti_pin: u.wajib_ganti_pin === true || u.wajib_ganti_pin === 'TRUE' || u.wajib_ganti_pin === 'YA' };
   return p;
 };
 
@@ -493,6 +529,7 @@ CC.A['crud.simpan'] = {
     if (!CC.boleh(ctx.user, baru ? m.c : m.u)) CC.galat('FORBIDDEN', baru ? 'Anda tidak boleh menambah ' + m.label + '.' : 'Data ' + m.label + ' tidak dapat diubah oleh peran Anda.');
     if (m.wajib) CC.wajib(d, m.wajib);
     ['dibuat_pada', 'dibuat_oleh', 'diubah_pada', 'diubah_oleh', 'status_arsip', 'pin_hash', 'salt', 'rev_sesi'].forEach(function (k) { delete d[k]; });
+    if (m.t === CC.T.USER) delete d.foto_url;   // foto profil hanya lewat profil.foto / akun.fotoHapus
     // lampiran (foto/PDF) dikirim sebagai data URL → simpan ke Drive dulu, sel hanya menyimpan URL-nya
     Object.keys(d).forEach(function (k) { if (typeof d[k] === 'string' && /^data:/.test(d[k])) d[k] = CC.env.simpanBerkas ? CC.env.simpanBerkas(d[k], p.mod + '_' + k + '_' + CC.u.tgl().replace(/-/g, '') + '_' + String(Date.now()).slice(-6), 'Lampiran_' + p.mod).url : ''; });
     Object.keys(d).forEach(function (k) { d[k] = CC.u.bersih(d[k]); });
